@@ -39,6 +39,7 @@ export interface OnboardingPayload {
   available_time?: string;
   preferred_content?: string[];
   language?: string;
+  known_topics?: string[];
 }
 
 export class ApiError extends Error {
@@ -546,16 +547,21 @@ export async function submitContestCodeApi(
   return await safeParseResponse<ContestSubmitResponse>(response, 'Failed to submit code.');
 }
 
-export async function createContestApi(
-  token: string,
-  payload: { cohort_id: string; question_count: number; start_time: string; end_time: string }
-): Promise<any> {
-  const response = await safeFetch(`${API_BASE_URL}/institutions/contests`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return await safeParseResponse(response, 'Failed to create contest session.');
+export interface CurriculumTopicItem {
+  topic_code: string;
+  label: string;
+  dimension?: string;
+  priority?: string;
+  phase?: string;
 }
+
+export async function getCurriculumTopicsApi(goal: string, year: string): Promise<CurriculumTopicItem[]> {
+  const response = await safeFetch(`${API_BASE_URL}/curriculum/topics?goal=${encodeURIComponent(goal)}&year=${encodeURIComponent(year)}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<CurriculumTopicItem[]>(response, 'Failed to fetch curriculum topics.');
+}
+
 
 

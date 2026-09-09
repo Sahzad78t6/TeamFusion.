@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, ArrowRight, ArrowLeft, Check, Target, GraduationCap, Building2, Loader2 } from 'lucide-react';
+import { Zap, ArrowRight, ArrowLeft, Check, Target, GraduationCap, Building2, Loader2, BookCheck, FastForward } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { useApp } from '../../context/AppContext';
+import { getCurriculumTopicsApi, CurriculumTopicItem } from '../../services/api';
 
 const GOAL_OPTIONS: [string, string][] = [
   ['software_engineering', 'Software Engineering'],
@@ -27,12 +28,46 @@ export const Onboarding: React.FC = () => {
   const navigate = useNavigate();
   const { submitOnboarding } = useApp();
 
-  // 3-step wizard state
+  // 4-step wizard state
   const [goalCode, setGoalCode] = useState<string>('software_engineering');
   const [yearLabel, setYearLabel] = useState<string>('1st Year');
+  const [knownTopics, setKnownTopics] = useState<string[]>([]);
   const [college, setCollege] = useState<string>('');
 
-  const totalSteps = 3;
+  // Curriculum topics for Step 3
+  const [topics, setTopics] = useState<CurriculumTopicItem[]>([]);
+  const [isLoadingTopics, setIsLoadingTopics] = useState<boolean>(false);
+
+  const totalSteps = 4;
+
+  // Fetch topics whenever goal, year, or entering step 3
+  useEffect(() => {
+    if (step === 3) {
+      setIsLoadingTopics(true);
+      getCurriculumTopicsApi(goalCode, yearLabel)
+        .then((data) => {
+          setTopics(data || []);
+        })
+        .catch((err) => {
+          console.warn('Failed to fetch topics for onboarding:', err);
+          setTopics([]);
+        })
+        .finally(() => {
+          setIsLoadingTopics(false);
+        });
+    }
+  }, [step, goalCode, yearLabel]);
+
+  const toggleTopic = (topicCode: string) => {
+    setKnownTopics((prev) =>
+      prev.includes(topicCode) ? prev.filter((t) => t !== topicCode) : [...prev, topicCode]
+    );
+  };
+
+  const handleSkipStep3 = () => {
+    setKnownTopics([]);
+    setStep(4);
+  };
 
   const handleNext = async () => {
     if (step < totalSteps) {
@@ -52,6 +87,7 @@ export const Onboarding: React.FC = () => {
           available_time: '',
           preferred_content: [],
           language: 'English',
+          known_topics: knownTopics,
         });
         navigate('/dashboard');
       } catch (err: any) {
@@ -85,7 +121,7 @@ export const Onboarding: React.FC = () => {
 
           {/* Progress Indicator Bar */}
           <div className="flex items-center gap-1.5">
-            {[1, 2, 3].map((s) => (
+            {[1, 2, 3, 4].map((s) => (
               <div
                 key={s}
                 className={`h-2 rounded-full transition-all duration-300 ${
@@ -118,7 +154,7 @@ export const Onboarding: React.FC = () => {
             >
               <div className="space-y-2">
                 <span className="px-2.5 py-1 text-[10px] font-extrabold bg-purple-500/20 text-purple-300 rounded-full uppercase border border-purple-500/30">
-                  Phase 1 — Career Goal
+                  Step 1 — Career Goal
                 </span>
                 <h3 className="text-xl font-bold text-white">What's your goal?</h3>
                 <p className="text-xs text-slate-400">Select your primary target track to calibrate your personalized curriculum.</p>
@@ -160,7 +196,7 @@ export const Onboarding: React.FC = () => {
             >
               <div className="space-y-2">
                 <span className="px-2.5 py-1 text-[10px] font-extrabold bg-indigo-500/20 text-indigo-300 rounded-full uppercase border border-indigo-500/30">
-                  Phase 2 — Academic Stage
+                  Step 2 — Academic Stage
                 </span>
                 <h3 className="text-xl font-bold text-white">Which year are you in?</h3>
                 <p className="text-xs text-slate-400">Calibrates pacing, milestones, and graduation readiness.</p>
@@ -198,8 +234,97 @@ export const Onboarding: React.FC = () => {
               className="space-y-6"
             >
               <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-1 text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 rounded-full uppercase border border-emerald-500/30">
+                    Step 3 — Prior Knowledge
+                  </span>
+                  {knownTopics.length > 0 && (
+                    <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
+                      <FastForward className="w-3.5 h-3.5" />
+                      {knownTopics.length} topic{knownTopics.length > 1 ? 's' : ''} skipped
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-xl font-bold text-white">What do you already know?</h3>
+                <p className="text-xs text-slate-400">
+                  Select topics you've already mastered. Your roadmap engine will skip these so you start at the right level.
+                </p>
+              </div>
+
+              {isLoadingTopics ? (
+                <div className="flex items-center justify-center py-12 text-slate-400 gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
+                  <span className="text-xs font-semibold">Loading track topics...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    {topics.map((t) => {
+                      const isSelected = knownTopics.includes(t.topic_code);
+                      return (
+                        <div
+                          key={t.topic_code}
+                          onClick={() => toggleTopic(t.topic_code)}
+                          className={`p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                            isSelected
+                              ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-md shadow-emerald-500/10 ring-1 ring-emerald-500'
+                              : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${
+                              isSelected ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-slate-500'
+                            }`}>
+                              {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold">{t.label}</p>
+                              {t.phase && (
+                                <span className="text-[10px] text-slate-400">{t.phase}</span>
+                              )}
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">
+                              Known
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Clear Skip Button */}
+                  <div className="pt-2 flex items-center justify-between border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={handleSkipStep3}
+                      className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 underline underline-offset-4 transition-colors"
+                    >
+                      <BookCheck className="w-4 h-4 text-purple-400" />
+                      I'm completely new to this — skip this step
+                    </button>
+
+                    <span className="text-[11px] text-slate-500">
+                      {knownTopics.length === 0 ? 'Zero selections' : `${knownTopics.length} selected`}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {step === 4 && (
+            <motion.div
+              key="step4"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="space-y-2">
                 <span className="px-2.5 py-1 text-[10px] font-extrabold bg-cyan-500/20 text-cyan-300 rounded-full uppercase border border-cyan-500/30">
-                  Phase 3 — Institution
+                  Step 4 — Institution
                 </span>
                 <h3 className="text-xl font-bold text-white">Which college?</h3>
                 <p className="text-xs text-slate-400">Unlock peer cohorts, campus leaderboards, and institutional resources.</p>

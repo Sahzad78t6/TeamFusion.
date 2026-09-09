@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, status
 
 from app.auth import get_current_user
+from app.curriculum_utils import get_current_topic
 from app.db import get_db
 from app.models import TaskUpdateRequest
 
@@ -22,12 +23,12 @@ async def get_planner_tasks(current_user: dict = Depends(get_current_user)):
         curriculum = await db["curriculum"].find_one({"goal": "software_engineering", "year": "1st Year"})
 
     sequence = curriculum.get("sequence", []) if curriculum else []
-    current_topic_index = progress.get("current_topic_index", 0) if progress else 0
+    completed_topics = progress.get("completed_topics", []) if progress else []
+    current_topic = get_current_topic(sequence, completed_topics)
 
-    if not sequence or current_topic_index >= len(sequence):
+    if not sequence or not current_topic:
         return []
 
-    current_topic = sequence[current_topic_index]
     today_iso = date.today().isoformat()
 
     return [
@@ -54,25 +55,25 @@ async def update_planner_task(
     user_id = str(current_user["_id"])
     progress = await db["user_progress"].find_one({"user_id": user_id})
 
-    goal = (progress.get("goal") if progress else None) or current_user.get("goal") or "ml_engineer"
+    goal = (progress.get("goal") if progress else None) or current_user.get("goal") or "software_engineering"
     year = (progress.get("year") if progress else None) or current_user.get("year") or "1st Year"
 
     curriculum = await db["curriculum"].find_one({"goal": goal, "year": year})
     if not curriculum:
-        curriculum = await db["curriculum"].find_one({"goal": "ml_engineer", "year": "1st Year"})
+        curriculum = await db["curriculum"].find_one({"goal": "software_engineering", "year": "1st Year"})
 
     sequence = curriculum.get("sequence", []) if curriculum else []
-    current_topic_index = progress.get("current_topic_index", 0) if progress else 0
+    completed_topics = progress.get("completed_topics", []) if progress else []
+    current_topic = get_current_topic(sequence, completed_topics)
 
-    if sequence and current_topic_index < len(sequence):
-        expected_topic_code = sequence[current_topic_index]["topic_code"]
+    if current_topic:
+        expected_topic_code = current_topic["topic_code"]
         # Only advance if task_id matches user's current topic_code
         if task_id == expected_topic_code:
             await db["user_progress"].update_one(
                 {"user_id": user_id},
                 {
                     "$push": {"completed_topics": task_id},
-                    "$inc": {"current_topic_index": 1},
                 },
                 upsert=True,
             )

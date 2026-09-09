@@ -40,15 +40,30 @@ async def submit_onboarding(
         {"$set": update_fields}
     )
 
-    # Upsert user_progress doc
+    # Fetch curriculum sequence to validate known_topics
+    goal_val = payload.goal or "software_engineering"
+    year_val = payload.current_role or "1st Year"
+    curriculum = await db["curriculum"].find_one({"goal": goal_val, "year": year_val})
+    if not curriculum:
+        curriculum = await db["curriculum"].find_one({"goal": "software_engineering", "year": "1st Year"})
+    sequence = curriculum.get("sequence", []) if curriculum else []
+    valid_topic_codes = {item["topic_code"] for item in sequence if "topic_code" in item}
+
+    raw_known = payload.known_topics or []
+    filtered_known = [code for code in raw_known if code in valid_topic_codes]
+
+    # Upsert user_progress doc - seed completed_topics and skipped_topics from filtered known_topics
     await db["user_progress"].update_one(
         {"user_id": str(user_id)},
         {
             "$set": {
-                "goal": payload.goal,
-                "year": payload.current_role,
-                "current_topic_index": 0,
-                "completed_topics": [],
+                "goal": goal_val,
+                "year": year_val,
+                "completed_topics": filtered_known,
+                "skipped_topics": filtered_known,
+            },
+            "$unset": {
+                "current_topic_index": ""
             }
         },
         upsert=True

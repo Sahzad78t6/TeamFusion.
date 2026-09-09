@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -14,6 +14,9 @@ import {
   PenTool,
   Clock,
   TrendingUp,
+  ChevronDown,
+  ChevronRight,
+  BookCheck,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../../components/common/Badge';
@@ -22,7 +25,8 @@ import { ProgressRing } from '../../components/common/ProgressRing';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 
 export const Dashboard: React.FC = () => {
-  const { user, identityTwin, tasks, toggleTask, opportunities, learningResources, analytics, setIsCopilotOpen, curriculumPlan, phaseInfo } = useApp();
+  const { user, identityTwin, tasks, toggleTask, opportunities, learningResources, analytics, setIsCopilotOpen, curriculumPlan, phaseInfo, skippedTopics } = useApp();
+  const [isSkippedOpen, setIsSkippedOpen] = useState(false);
 
   const completedCount = tasks.filter((t) => t.isCompleted).length;
   const taskProgress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
@@ -268,6 +272,35 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
               ))}
+
+              {skippedTopics && skippedTopics.length > 0 && (
+                <div className="pt-3 border-t border-white/10 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsSkippedOpen(!isSkippedOpen)}
+                    className="w-full flex items-center justify-between text-xs text-slate-300 hover:text-white py-1 transition-colors group"
+                  >
+                    <span className="flex items-center gap-1.5 font-bold text-emerald-400">
+                      <BookCheck className="w-4 h-4" />
+                      Already know ({skippedTopics.length})
+                    </span>
+                    {isSkippedOpen ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                  </button>
+                  {isSkippedOpen && (
+                    <div className="space-y-1.5 pl-2 border-l-2 border-emerald-500/40">
+                      {skippedTopics.map((item) => (
+                        <div key={item.topic_code} className="flex items-center gap-2 text-[11px] text-slate-300 py-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                          <span className="ml-auto text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            Skipped
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

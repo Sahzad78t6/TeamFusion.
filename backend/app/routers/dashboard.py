@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 
 from app.auth import get_current_user
+from app.curriculum_utils import get_current_topic
 from app.db import get_db
 from app.routers.recommendation import get_user_recommendations
 
@@ -20,8 +21,8 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         curriculum = await db["curriculum"].find_one({"goal": "software_engineering", "year": "1st Year"})
 
     sequence = curriculum.get("sequence", []) if curriculum else []
-    current_topic_index = progress.get("current_topic_index", 0) if progress else 0
     completed_topics = progress.get("completed_topics", []) if progress else []
+    skipped_codes = progress.get("skipped_topics", []) if progress else []
 
     total_topics = len(sequence)
     progress_percent = round((len(completed_topics) / total_topics) * 100) if total_topics > 0 else 0
@@ -33,8 +34,9 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         if p and p not in phases_list:
             phases_list.append(p)
 
-    if sequence and current_topic_index < total_topics:
-        current_topic_item = sequence[current_topic_index]
+    current_topic_item = get_current_topic(sequence, completed_topics)
+
+    if sequence and current_topic_item:
         current_topic_label = current_topic_item["label"]
         current_topic_code = current_topic_item["topic_code"]
         current_phase = current_topic_item.get("phase", "")
@@ -51,6 +53,13 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
 
     total_phases = len(phases_list) if phases_list else 1
     phase_step = (phases_list.index(current_phase) + 1) if current_phase in phases_list else 1
+
+    # Map skipped_topics to their labels for frontend rendering
+    topic_label_map = {item["topic_code"]: item["label"] for item in sequence if "topic_code" in item}
+    skipped_topics_list = [
+        {"topic_code": code, "label": topic_label_map.get(code, code)}
+        for code in skipped_codes
+    ]
 
     # Pull recommendations for dashboard preview
     rec_data = await get_user_recommendations(current_user, db)
@@ -73,6 +82,7 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
             "total_phases": total_phases,
             "display": f"Phase {phase_step} of {total_phases}: {current_phase.replace('Phase ' + str(phase_step) + ': ', '')}" if not is_completed else "Completed",
         },
+        "skipped_topics": skipped_topics_list,
         # Integrated fields for AppContext.tsx and Dashboard.tsx
         "identity_twin": {
             "target_role": current_user.get("target_role") or goal,

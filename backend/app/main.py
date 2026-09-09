@@ -11,6 +11,7 @@ from app.routers.dashboard import router as dashboard_router
 from app.routers.planner import router as planner_router
 from app.routers.institutions import router as institutions_router
 from app.routers.contests import router as contests_router
+from app.routers.curriculum import router as curriculum_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("growthos.main")
@@ -46,6 +47,7 @@ app.add_middleware(
 # Mount routers - no /api prefix
 app.include_router(auth_router, prefix="/auth")
 app.include_router(onboarding_router)
+app.include_router(curriculum_router)
 app.include_router(recommendation_router)
 app.include_router(dashboard_router)
 app.include_router(planner_router)

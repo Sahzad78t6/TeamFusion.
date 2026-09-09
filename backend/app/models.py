@@ -43,6 +43,7 @@ class OnboardingRequest(BaseModel):
     available_time: Optional[str] = ""
     preferred_content: List[str] = Field(default_factory=list)
     language: Optional[str] = "English"
+    known_topics: Optional[List[str]] = Field(default_factory=list)
 
 class IdentityResponse(BaseModel):
     goal: Optional[str] = None

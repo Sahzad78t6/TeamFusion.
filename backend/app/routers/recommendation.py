@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, status
 
 from app.auth import get_current_user
+from app.curriculum_utils import get_current_topic
 from app.db import get_db
 from app.models import RefreshRequest
 
@@ -21,13 +22,14 @@ async def get_user_recommendations(current_user: dict, db) -> dict:
         curriculum = await db["curriculum"].find_one({"goal": "software_engineering", "year": "1st Year"})
 
     sequence = curriculum.get("sequence", []) if curriculum else []
-    current_topic_index = progress.get("current_topic_index", 0) if progress else 0
+    completed_topics = progress.get("completed_topics", []) if progress else []
+    current_topic = get_current_topic(sequence, completed_topics)
 
     target_role = current_user.get("target_role") or current_user.get("goal") or "ML / AI Engineer"
     learning_style = current_user.get("learning_style") or "Practical & Visual"
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    if not sequence or current_topic_index >= len(sequence):
+    if not sequence or not current_topic:
         return {
             "resources": [],
             "recommendations": [],
@@ -40,7 +42,6 @@ async def get_user_recommendations(current_user: dict, db) -> dict:
             "generated_at": now_iso,
         }
 
-    current_topic = sequence[current_topic_index]
     topic_code = current_topic["topic_code"]
     topic_label = current_topic["label"]
 

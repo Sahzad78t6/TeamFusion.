@@ -45,6 +45,7 @@ export interface AppContextType {
     total_phases: number;
     display: string;
   };
+  skippedTopics: { topic_code: string; label: string }[];
   setLearningResources: React.Dispatch<React.SetStateAction<LearningResource[]>>;
   opportunities: Opportunity[];
   setOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
@@ -99,6 +100,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     total_phases: 4,
     display: '',
   });
+  const [skippedTopics, setSkippedTopics] = useState<{ topic_code: string; label: string }[]>([]);
   const [reflections, setReflections] = useState<ReflectionEntry[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary>(emptyAnalytics);
@@ -138,14 +140,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Suppress
       }
     }
-    setAuthToken(null);
+    setAuthTokenState(null);
+    localStorage.removeItem('growthos_access_token');
+    localStorage.removeItem('growthos_refresh_token');
     setUser(emptyUser);
-    setIdentityTwin(emptyIdentityTwin);
-    setLearningResources([]);
     setTasks([]);
-    setReflections([]);
-    setNotifications([]);
-    setAnalytics(emptyAnalytics);
+    setLearningResources([]);
     setOpportunities([]);
     setSearchQuery('');
   };
@@ -156,6 +156,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const data = await getDashboardApi(authToken);
       if (data.plan_label) setCurriculumPlan(data.plan_label);
       if (data.phase_info) setPhaseInfo(data.phase_info);
+      if (data.skipped_topics) setSkippedTopics(data.skipped_topics);
       if (data.identity_twin) {
         setIdentityTwin((prev) => ({
           ...prev,
@@ -446,6 +447,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         learningResources,
         curriculumPlan,
         phaseInfo,
+        skippedTopics,
         setLearningResources,
         opportunities,
         setOpportunities,

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, CheckCircle2, Circle, Clock, Plus, Flame, Sparkles } from 'lucide-react';
+import { Calendar, CheckCircle2, Circle, Clock, Plus, Flame, Sparkles, ChevronDown, ChevronRight, BookCheck } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 
 export const Planner: React.FC = () => {
-  const { tasks, toggleTask } = useApp();
+  const { tasks, toggleTask, skippedTopics } = useApp();
   const [activeTab, setActiveTab] = useState<'timeline' | 'kanban'>('timeline');
+  const [isSkippedOpen, setIsSkippedOpen] = useState(false);
 
   const completedCount = tasks.filter((t) => t.isCompleted).length;
 
@@ -21,6 +22,11 @@ export const Planner: React.FC = () => {
               Daily Focus Engine
             </Badge>
             <Badge variant="cyan">{completedCount} of {tasks.length} Completed</Badge>
+            {skippedTopics && skippedTopics.length > 0 && (
+              <Badge variant="emerald" icon={<BookCheck className="w-3.5 h-3.5 text-emerald-400" />}>
+                {skippedTopics.length} Pre-known Skipped
+              </Badge>
+            )}
           </div>
           <h1 className="text-3xl font-extrabold text-white mt-2">Daily Planner & Timeline</h1>
           <p className="text-xs text-slate-400">Broken down from your Identity Twin milestone roadmap.</p>
@@ -112,6 +118,38 @@ export const Planner: React.FC = () => {
               </motion.div>
             ))}
           </div>
+
+          {/* Skipped Topics Section */}
+          {skippedTopics && skippedTopics.length > 0 && (
+            <div className="pt-6 border-t border-white/10 space-y-4">
+              <button
+                type="button"
+                onClick={() => setIsSkippedOpen(!isSkippedOpen)}
+                className="w-full flex items-center justify-between text-xs text-slate-300 hover:text-white py-1 transition-colors"
+              >
+                <span className="flex items-center gap-2 font-bold text-emerald-400">
+                  <BookCheck className="w-4 h-4" />
+                  Already know — Skipped Topics ({skippedTopics.length})
+                </span>
+                {isSkippedOpen ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+              </button>
+              {isSkippedOpen && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {skippedTopics.map((item) => (
+                    <div key={item.topic_code} className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span className="text-xs text-slate-200 font-semibold">{item.label}</span>
+                      </div>
+                      <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Skipped
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
