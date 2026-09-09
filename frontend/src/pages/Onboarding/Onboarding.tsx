@@ -26,7 +26,13 @@ export const Onboarding: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
-  const { submitOnboarding } = useApp();
+  const { user, submitOnboarding } = useApp();
+
+  useEffect(() => {
+    if (user.onboarding_completed) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user.onboarding_completed, navigate]);
 
   // 4-step wizard state
   const [goalCode, setGoalCode] = useState<string>('software_engineering');
