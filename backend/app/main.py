@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import logging
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -30,16 +31,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-import os
-
-# Enable CORS
+# Enable CORS — includes all known frontend origins
 _allowed_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://team-fusion-ipx2.vercel.app",
+    "https://team-fusion-ipx2.vercel.app/",
 ]
+# Allow injecting extra origin via Render env var (FRONTEND_URL)
 _env_frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
 if _env_frontend and _env_frontend not in _allowed_origins:
     _allowed_origins.append(_env_frontend)

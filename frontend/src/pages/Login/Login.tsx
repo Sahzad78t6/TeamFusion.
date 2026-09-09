@@ -31,7 +31,7 @@ export const Login: React.FC = () => {
   const handleGoogleLogin = () => {
     const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '';
     const isDev = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1');
-    const redirectUri = (import.meta as any).env?.VITE_GOOGLE_REDIRECT_URI || 'https://teamfusion-1.onrender.com';
+    const redirectUri = (import.meta as any).env?.VITE_GOOGLE_REDIRECT_URI || 'https://teamfusion-os48.onrender.com';
     const state = isDev ? 'dev' : 'prod';
 
     if (googleClientId) {
@@ -45,7 +45,7 @@ export const Login: React.FC = () => {
       window.location.href = authUrl;
     } else {
       // Seamless fallback to backend Google OAuth initiation route
-      const backendUrl = (import.meta as any).env?.VITE_API_URL || 'https://teamfusion-1.onrender.com';
+      const backendUrl = (import.meta as any).env?.VITE_API_URL || 'https://teamfusion-os48.onrender.com';
       const cleanBackendUrl = backendUrl.replace(/\/api\/?$/, '');
       window.location.href = `${cleanBackendUrl}/auth/google/login?state=${state}`;
     }
