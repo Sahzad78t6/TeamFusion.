@@ -103,6 +103,7 @@ class ContestCreateRequest(BaseModel):
 class CodeSubmitRequest(BaseModel):
     question_id: str = Field(..., min_length=1)
     code: str
+    language: Optional[str] = "python"
 
 class TestCaseResult(BaseModel):
     test_case_index: int
@@ -111,5 +112,6 @@ class TestCaseResult(BaseModel):
 class CodeSubmitResponse(BaseModel):
     passed: Optional[bool]
     results: List[TestCaseResult]
+    error: Optional[str] = None
 
 

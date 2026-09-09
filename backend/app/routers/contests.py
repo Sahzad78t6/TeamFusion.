@@ -3,13 +3,11 @@ from datetime import datetime, timezone
 import logging
 import os
 import random
-import subprocess
-import sys
-import tempfile
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
+import httpx
 
 from app.auth import get_current_user
 from app.db import get_db
@@ -19,6 +17,18 @@ logger = logging.getLogger("growthos.contests")
 
 router = APIRouter(tags=["contests"])
 
+PISTON_API_URL = os.getenv("PISTON_API_URL", "https://emkc.org/api/v2/piston/execute")
+
+PISTON_LANG_MAP = {
+    "python": "python",
+    "javascript": "javascript",
+    "js": "javascript",
+    "java": "java",
+    "c++": "cpp",
+    "cpp": "cpp",
+    "c": "c",
+}
+
 def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
     if current_user.get("role") not in ["INSTITUTION_ADMIN", "PLATFORM_ADMIN"]:
         raise HTTPException(
@@ -26,57 +36,6 @@ def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
             detail="Admin access required",
         )
     return current_user
-
-RUNNER_WRAPPER = """import sys
-
-def _audit_hook(event, args):
-    if any(event.startswith(prefix) for prefix in ("socket.", "http.", "urllib.")):
-        raise PermissionError("Network access blocked in contest sandbox: " + str(event))
-
-sys.addaudithook(_audit_hook)
-
-with open(r"__SOLUTION_PATH__", "r", encoding="utf-8") as _f:
-    _code = _f.read()
-
-exec(compile(_code, "solution.py", "exec"), {})
-"""
-
-def _execute_test_case_sync(code: str, test_input: str, expected_output: str, timeout_sec: float = 2.0) -> bool:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        solution_path = os.path.join(tmpdir, "solution.py")
-        wrapper_path = os.path.join(tmpdir, "wrapper.py")
-
-        with open(solution_path, "w", encoding="utf-8") as f:
-            f.write(code)
-
-        with open(wrapper_path, "w", encoding="utf-8") as f:
-            f.write(RUNNER_WRAPPER.replace("__SOLUTION_PATH__", solution_path))
-
-        env = {
-            "SYSTEMROOT": os.environ.get("SYSTEMROOT", "C:\\Windows"),
-            "PATH": os.environ.get("PATH", ""),
-            "PYTHONPATH": "",
-            "PYTHONNOUSERSITE": "1",
-        }
-
-        try:
-            proc = subprocess.run(
-                [sys.executable, "-I", "-s", wrapper_path],
-                input=test_input,
-                capture_output=True,
-                text=True,
-                timeout=timeout_sec,
-                cwd=tmpdir,
-                env=env,
-            )
-            actual = proc.stdout.strip()
-            expected = expected_output.strip()
-            return (proc.returncode == 0) and (actual == expected)
-        except subprocess.TimeoutExpired:
-            return False
-        except Exception as exc:
-            logger.warning("Sandbox execution error: %s", exc)
-            return False
 
 def _parse_datetime(dt_val: Any) -> datetime:
     if isinstance(dt_val, datetime):
@@ -91,6 +50,56 @@ def _parse_datetime(dt_val: Any) -> datetime:
         return dt
     raise ValueError(f"Cannot parse datetime from {dt_val}")
 
+async def _execute_test_cases_piston(
+    language: str,
+    code: str,
+    test_cases: List[dict],
+    timeout_sec: float = 6.0
+) -> tuple[Optional[bool], List[TestCaseResult], Optional[str]]:
+    piston_lang = PISTON_LANG_MAP.get(language.lower().strip(), "python")
+    results: List[TestCaseResult] = []
+
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        async with httpx.AsyncClient(timeout=timeout_sec, headers=headers) as client:
+            for index, tc in enumerate(test_cases):
+                tc_input = tc.get("input", "")
+                tc_expected = tc.get("expected_output", "").strip()
+
+                payload = {
+                    "language": piston_lang,
+                    "version": "*",
+                    "files": [{"content": code}],
+                    "stdin": tc_input,
+                }
+
+                resp = await client.post(PISTON_API_URL, json=payload)
+                if resp.status_code != 200:
+                    logger.warning(f"Piston HTTP error status: {resp.status_code}, body: {resp.text}")
+                    return (
+                        None,
+                        [],
+                        "Execution service unavailable, submission saved for manual review"
+                    )
+
+                data = resp.json()
+                run_stage = data.get("run", {})
+                stdout = run_stage.get("stdout", "").strip()
+                code_exit = run_stage.get("code", 0)
+
+                passed = (code_exit == 0) and (stdout == tc_expected)
+                results.append(TestCaseResult(test_case_index=index, passed=passed))
+
+        overall_passed = bool(results) and all(r.passed for r in results)
+        return (overall_passed, results, None)
+    except Exception as exc:
+        logger.warning(f"Piston API execution failed or timed out: {exc}")
+        return (
+            None,
+            [],
+            "Execution service unavailable, submission saved for manual review"
+        )
+
 # POST /institutions/contests (Admin)
 @router.post("/institutions/contests")
 @router.post("/contests")
@@ -101,7 +110,6 @@ async def create_contest_session(
     db = get_db()
     inst_id = current_user.get("institution_id")
     if not inst_id:
-        # Create fallback institution doc if missing
         inst_doc = {
             "name": f"Institution {str(current_user['_id'])[-6:]}",
             "created_by_admin_id": str(current_user["_id"]),
@@ -123,7 +131,6 @@ async def create_contest_session(
     if end_dt <= start_dt:
         raise HTTPException(status_code=400, detail="end_time must be after start_time")
 
-    # Randomly sample question_count from coding_bank
     all_questions = await db["coding_bank"].find({}).to_list(100)
     if not all_questions:
         raise HTTPException(status_code=404, detail="No questions available in coding_bank")
@@ -305,34 +312,29 @@ async def submit_contest_code(
         raise HTTPException(status_code=404, detail="Question not found")
 
     test_cases = question.get("test_cases", [])
-    results: List[TestCaseResult] = []
+    lang_str = (payload.language or "python").strip()
 
-    for index, tc in enumerate(test_cases):
-        tc_input = tc.get("input", "")
-        tc_expected = tc.get("expected_output", "")
-        passed = await asyncio.to_thread(
-            _execute_test_case_sync,
-            payload.code,
-            tc_input,
-            tc_expected,
-            2.0,
-        )
-        results.append(TestCaseResult(test_case_index=index, passed=passed))
-
-    overall_passed = bool(results) and all(r.passed for r in results)
+    overall_passed, results, error_msg = await _execute_test_cases_piston(
+        lang_str,
+        payload.code,
+        test_cases,
+        6.0
+    )
 
     submission_doc = {
         "contest_id": ObjectId(id),
         "question_id": ObjectId(payload.question_id),
         "user_id": user_obj_id,
+        "language": lang_str,
         "code": payload.code,
         "passed": overall_passed,
         "results": [r.model_dump() for r in results],
+        "error": error_msg,
         "submitted_at": now_dt,
     }
     await db["code_submissions"].insert_one(submission_doc)
 
-    return CodeSubmitResponse(passed=overall_passed, results=results)
+    return CodeSubmitResponse(passed=overall_passed, results=results, error=error_msg)
 
 # GET /institutions/admin/contests (Admin)
 @router.get("/institutions/admin/contests")

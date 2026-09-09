@@ -528,7 +528,7 @@ export interface CodingContestQuestion {
   title: string;
   description: string;
   difficulty: string;
-  starter_code: string;
+  starter_code: string | Record<string, string>;
   test_cases?: { input: string }[];
 }
 
@@ -544,6 +544,7 @@ export interface ActiveContestResponse {
 export interface ContestSubmitResponse {
   passed: boolean | null;
   results: { test_case_index: number; passed: boolean }[];
+  error?: string | null;
 }
 
 export async function getActiveContestApi(token: string): Promise<ActiveContestResponse | null> {
@@ -557,7 +558,7 @@ export async function getActiveContestApi(token: string): Promise<ActiveContestR
 export async function submitContestCodeApi(
   token: string,
   contestId: string,
-  payload: { question_id: string; code: string }
+  payload: { question_id: string; code: string; language?: string }
 ): Promise<ContestSubmitResponse> {
   const response = await safeFetch(`${API_BASE_URL}/contests/${contestId}/submit`, {
     method: 'POST',

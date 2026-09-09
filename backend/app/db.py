@@ -502,7 +502,13 @@ SEED_CODING_BANK = [
         "title": "Reverse a String",
         "description": "Write a program that reads a string from standard input and prints its reverse to standard output.",
         "difficulty": "Easy",
-        "starter_code": "import sys\n\ns = sys.stdin.read().strip()\n# Print the reversed string\nprint(s[::-1])\n",
+        "starter_code": {
+            "python": "import sys\n\ns = sys.stdin.read().strip()\n# Print the reversed string\nprint(s[::-1])\n",
+            "javascript": "const fs = require('fs');\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nconsole.log(input.split('').reverse().join(''));\n",
+            "java": "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (sc.hasNextLine()) {\n            String s = sc.nextLine().trim();\n            System.out.println(new StringBuilder(s).reverse().toString());\n        }\n    }\n}\n",
+            "cpp": "#include <iostream>\n#include <string>\n#include <algorithm>\nusing namespace std;\n\nint main() {\n    string s;\n    if (getline(cin, s)) {\n        while (!s.empty() && (s.back() == '\\r' || s.back() == '\\n')) s.pop_back();\n        reverse(s.begin(), s.end());\n        cout << s << endl;\n    }\n    return 0;\n}\n",
+            "c": "#include <stdio.h>\n#include <string.h>\n\nint main() {\n    char str[1000];\n    if (fgets(str, sizeof(str), stdin)) {\n        str[strcspn(str, \"\\r\\n\")] = 0;\n        int len = strlen(str);\n        for (int i = len - 1; i >= 0; i--) {\n            putchar(str[i]);\n        }\n        putchar('\\n');\n    }\n    return 0;\n}\n"
+        },
         "test_cases": [
             {"input": "hello\n", "expected_output": "olleh"},
             {"input": "growthos\n", "expected_output": "sohtworg"},
@@ -513,7 +519,13 @@ SEED_CODING_BANK = [
         "title": "Find Maximum in Array",
         "description": "Write a program that reads space-separated integers from standard input and prints the maximum integer to standard output.",
         "difficulty": "Easy",
-        "starter_code": "import sys\n\nnums = list(map(int, sys.stdin.read().split()))\n# Print the maximum number\nif nums:\n    print(max(nums))\n",
+        "starter_code": {
+            "python": "import sys\n\nnums = list(map(int, sys.stdin.read().split()))\nif nums:\n    print(max(nums))\n",
+            "javascript": "const fs = require('fs');\n\nconst input = fs.readFileSync(0, 'utf-8').trim();\nif (input) {\n    const nums = input.split(/\\s+/).map(Number);\n    console.log(Math.max(...nums));\n}\n",
+            "java": "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (!sc.hasNextInt()) return;\n        int maxVal = sc.nextInt();\n        while (sc.hasNextInt()) {\n            int val = sc.nextInt();\n            if (val > maxVal) maxVal = val;\n        }\n        System.out.println(maxVal);\n    }\n}\n",
+            "cpp": "#include <iostream>\n#include <algorithm>\nusing namespace std;\n\nint main() {\n    int val, maxVal;\n    if (cin >> maxVal) {\n        while (cin >> val) {\n            if (val > maxVal) maxVal = val;\n        }\n        cout << maxVal << endl;\n    }\n    return 0;\n}\n",
+            "c": "#include <stdio.h>\n\nint main() {\n    int val, maxVal;\n    if (scanf(\"%d\", &maxVal) == 1) {\n        while (scanf(\"%d\", &val) == 1) {\n            if (val > maxVal) maxVal = val;\n        }\n        printf(\"%d\\n\", maxVal);\n    }\n    return 0;\n}\n"
+        },
         "test_cases": [
             {"input": "3 7 2 9 1\n", "expected_output": "9"},
             {"input": "-10 -5 -20 -1\n", "expected_output": "-1"},
@@ -524,7 +536,13 @@ SEED_CODING_BANK = [
         "title": "Check Palindrome",
         "description": "Write a program that reads a string from standard input. If it reads the same forwards and backwards, print 'true', otherwise print 'false'.",
         "difficulty": "Easy",
-        "starter_code": "import sys\n\ns = sys.stdin.read().strip()\n# Print 'true' or 'false'\nis_pal = s == s[::-1]\nprint('true' if is_pal else 'false')\n",
+        "starter_code": {
+            "python": "import sys\n\ns = sys.stdin.read().strip()\nis_pal = s == s[::-1]\nprint('true' if is_pal else 'false')\n",
+            "javascript": "const fs = require('fs');\n\nconst s = fs.readFileSync(0, 'utf-8').trim();\nconst rev = s.split('').reverse().join('');\nconsole.log(s === rev ? 'true' : 'false');\n",
+            "java": "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (sc.hasNextLine()) {\n            String s = sc.nextLine().trim();\n            String rev = new StringBuilder(s).reverse().toString();\n            System.out.println(s.equals(rev) ? \"true\" : \"false\");\n        }\n    }\n}\n",
+            "cpp": "#include <iostream>\n#include <string>\n#include <algorithm>\nusing namespace std;\n\nint main() {\n    string s;\n    if (getline(cin, s)) {\n        while (!s.empty() && (s.back() == '\\r' || s.back() == '\\n')) s.pop_back();\n        string rev = s;\n        reverse(rev.begin(), rev.end());\n        cout << (s == rev ? \"true\" : \"false\") << endl;\n    }\n    return 0;\n}\n",
+            "c": "#include <stdio.h>\n#include <string.h>\n\nint main() {\n    char str[1000];\n    if (fgets(str, sizeof(str), stdin)) {\n        str[strcspn(str, \"\\r\\n\")] = 0;\n        int len = strlen(str);\n        int isPal = 1;\n        for (int i = 0; i < len / 2; i++) {\n            if (str[i] != str[len - 1 - i]) {\n                isPal = 0;\n                break;\n            }\n        }\n        printf(isPal ? \"true\\n\" : \"false\\n\");\n    }\n    return 0;\n}\n"
+        },
         "test_cases": [
             {"input": "radar\n", "expected_output": "true"},
             {"input": "python\n", "expected_output": "false"},
@@ -535,7 +553,13 @@ SEED_CODING_BANK = [
         "title": "Count Vowels",
         "description": "Write a program that reads a string from standard input and counts the total number of vowels (a, e, i, o, u, case-insensitive). Print the integer count to standard output.",
         "difficulty": "Easy",
-        "starter_code": "import sys\n\ns = sys.stdin.read().strip()\n# Count and print vowels\nvowels = set('aeiouAEIOU')\nprint(sum(1 for ch in s if ch in vowels))\n",
+        "starter_code": {
+            "python": "import sys\n\ns = sys.stdin.read().strip()\nvowels = set('aeiouAEIOU')\nprint(sum(1 for ch in s if ch in vowels))\n",
+            "javascript": "const fs = require('fs');\n\nconst s = fs.readFileSync(0, 'utf-8').trim();\nconst count = (s.match(/[aeiou]/gi) || []).length;\nconsole.log(count);\n",
+            "java": "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (sc.hasNextLine()) {\n            String s = sc.nextLine();\n            int count = 0;\n            for (char c : s.toCharArray()) {\n                if (\"aeiouAEIOU\".indexOf(c) != -1) count++;\n            }\n            System.out.println(count);\n        }\n    }\n}\n",
+            "cpp": "#include <iostream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string s;\n    if (getline(cin, s)) {\n        int count = 0;\n        string vowels = \"aeiouAEIOU\";\n        for (char c : s) {\n            if (vowels.find(c) != string::npos) count++;\n        }\n        cout << count << endl;\n    }\n    return 0;\n}\n",
+            "c": "#include <stdio.h>\n#include <string.h>\n\nint main() {\n    char str[1000];\n    if (fgets(str, sizeof(str), stdin)) {\n        int count = 0;\n        for (int i = 0; str[i] != '\\0'; i++) {\n            char c = str[i];\n            if (c=='a'||c=='e'||c=='i'||c=='o'||c=='u'||c=='A'||c=='E'||c=='I'||c=='O'||c=='U') {\n                count++;\n            }\n        }\n        printf(\"%d\\n\", count);\n    }\n    return 0;\n}\n"
+        },
         "test_cases": [
             {"input": "GrowthOS\n", "expected_output": "2"},
             {"input": "aeiouAEIOU\n", "expected_output": "10"},
@@ -546,7 +570,13 @@ SEED_CODING_BANK = [
         "title": "Nth Fibonacci Number",
         "description": "Given non-negative integer N on standard input, print the N-th Fibonacci number to standard output (where fib(0)=0, fib(1)=1, fib(2)=1, fib(3)=2, ...).",
         "difficulty": "Easy",
-        "starter_code": "import sys\n\nn = int(sys.stdin.read().strip())\n# Print the Nth Fibonacci number\ndef fib(x):\n    a, b = 0, 1\n    for _ in range(x):\n        a, b = b, a + b\n    return a\nprint(fib(n))\n",
+        "starter_code": {
+            "python": "import sys\n\nn = int(sys.stdin.read().strip())\ndef fib(x):\n    a, b = 0, 1\n    for _ in range(x):\n        a, b = b, a + b\n    return a\nprint(fib(n))\n",
+            "javascript": "const fs = require('fs');\n\nconst n = parseInt(fs.readFileSync(0, 'utf-8').trim(), 10);\nlet a = 0, b = 1;\nfor (let i = 0; i < n; i++) {\n    const temp = a + b;\n    a = b;\n    b = temp;\n}\nconsole.log(a);\n",
+            "java": "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (sc.hasNextInt()) {\n            int n = sc.nextInt();\n            long a = 0, b = 1;\n            for (int i = 0; i < n; i++) {\n                long temp = a + b;\n                a = b;\n                b = temp;\n            }\n            System.out.println(a);\n        }\n    }\n}\n",
+            "cpp": "#include <iostream>\nusing namespace std;\n\nint main() {\n    int n;\n    if (cin >> n) {\n        long long a = 0, b = 1;\n        for (int i = 0; i < n; i++) {\n            long long temp = a + b;\n            a = b;\n            b = temp;\n        }\n        cout << a << endl;\n    }\n    return 0;\n}\n",
+            "c": "#include <stdio.h>\n\nint main() {\n    int n;\n    if (scanf(\"%d\", &n) == 1) {\n        long long a = 0, b = 1;\n        for (int i = 0; i < n; i++) {\n            long long temp = a + b;\n            a = b;\n            b = temp;\n        }\n        printf(\"%lld\\n\", a);\n    }\n    return 0;\n}\n"
+        },
         "test_cases": [
             {"input": "0\n", "expected_output": "0"},
             {"input": "7\n", "expected_output": "13"},
@@ -642,12 +672,13 @@ async def init_db() -> None:
     await coding_bank_collection.create_index("title")
     logger.info("Index on coding_bank.title verified/created.")
 
-    coding_bank_count = await coding_bank_collection.count_documents({})
-    if coding_bank_count == 0:
-        await coding_bank_collection.insert_many(SEED_CODING_BANK)
-        logger.info(f"Seeded {len(SEED_CODING_BANK)} coding questions into coding_bank.")
-    else:
-        logger.info(f"Coding bank already contains {coding_bank_count} questions.")
+    for q in SEED_CODING_BANK:
+        await coding_bank_collection.update_one(
+            {"title": q["title"]},
+            {"$set": q},
+            upsert=True,
+        )
+    logger.info(f"Seeded/updated {len(SEED_CODING_BANK)} coding questions into coding_bank with multi-language starter code.")
 
     contest_sessions_collection = database["contest_sessions"]
     await contest_sessions_collection.create_index("cohort_id")
