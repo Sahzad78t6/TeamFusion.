@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, status
 
 from app.auth import get_current_user
@@ -5,9 +6,100 @@ from app.curriculum_utils import get_current_topic
 from app.db import get_db
 from app.routers.recommendation import get_user_recommendations
 
-router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+router = APIRouter(tags=["dashboard"])
 
-@router.get("", status_code=status.HTTP_200_OK)
+async def compute_user_analytics(db, current_user: dict, progress: dict = None, sequence: list = None) -> dict:
+    user_id = str(current_user["_id"])
+    if not progress:
+        progress = await db["user_progress"].find_one({"user_id": user_id}) or {}
+
+    completed_topics = set(progress.get("completed_topics", []))
+
+    cat_map = {}
+    if sequence:
+        for item in sequence:
+            dim = item.get("dimension") or "general_skills"
+            dim_name = dim.replace("_", " ").title()
+            if dim_name not in cat_map:
+                cat_map[dim_name] = {"total": 0, "completed": 0}
+            cat_map[dim_name]["total"] += 1
+            if item.get("topic_code") in completed_topics:
+                cat_map[dim_name]["completed"] += 1
+
+    radar_skills = []
+    if cat_map:
+        for cat_name, stats in cat_map.items():
+            curr = round((stats["completed"] / stats["total"]) * 100, 1) if stats["total"] > 0 else 0.0
+            radar_skills.append({
+                "subject": cat_name,
+                "current": curr,
+                "target": 80.0,
+                "fullMark": 100,
+            })
+    else:
+        default_categories = [
+            "Data Structures",
+            "System Architecture",
+            "Backend APIs",
+            "Cloud & DevOps",
+            "Database Systems",
+            "AI Integration",
+        ]
+        base_score = min(100.0, float(len(completed_topics) * 20))
+        for cat in default_categories:
+            radar_skills.append({
+                "subject": cat,
+                "current": base_score,
+                "target": 80.0,
+                "fullMark": 100,
+            })
+
+    now = datetime.now(timezone.utc)
+    day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    reflections = await db["reflections"].find({"user_id": user_id}).to_list(100)
+    daily_hours = {(now - timedelta(days=i)).strftime("%Y-%m-%d"): 0.0 for i in range(7)}
+
+    for r in reflections:
+        created = r.get("created_at")
+        hours = float(r.get("study_hours", 0.0) or 0.0)
+        if isinstance(created, datetime):
+            date_str = created.strftime("%Y-%m-%d")
+        elif isinstance(created, str) and len(created) >= 10:
+            date_str = created[:10]
+        else:
+            date_str = ""
+
+        if date_str in daily_hours:
+            daily_hours[date_str] += hours
+
+    past_7_days = [(now - timedelta(days=i)) for i in range(6, -1, -1)]
+    weekly_heatmap = []
+    total_hours = 0.0
+    for d in past_7_days:
+        d_str = d.strftime("%Y-%m-%d")
+        day_label = day_names[d.weekday()]
+        h_val = round(daily_hours.get(d_str, 0.0), 1)
+        total_hours += h_val
+        weekly_heatmap.append({
+            "day": day_label,
+            "hours": h_val,
+        })
+
+    streak = current_user.get("streak", 0) or 0
+    growth_score = min(98, max(70, 70 + len(completed_topics) * 5))
+    weekly_hours_result = round(total_hours, 1) if total_hours > 0 else 14.0
+
+    return {
+        "growth_score": growth_score,
+        "weekly_hours_logged": weekly_hours_result,
+        "burnout_risk_score": 15,
+        "streak_days": streak,
+        "radar_skills": radar_skills,
+        "weekly_heatmap": weekly_heatmap,
+    }
+
+@router.get("/dashboard", status_code=status.HTTP_200_OK)
 async def get_dashboard(current_user: dict = Depends(get_current_user)):
     db = get_db()
     user_id = str(current_user["_id"])
@@ -54,16 +146,16 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
     total_phases = len(phases_list) if phases_list else 1
     phase_step = (phases_list.index(current_phase) + 1) if current_phase in phases_list else 1
 
-    # Map skipped_topics to their labels for frontend rendering
     topic_label_map = {item["topic_code"]: item["label"] for item in sequence if "topic_code" in item}
     skipped_topics_list = [
         {"topic_code": code, "label": topic_label_map.get(code, code)}
         for code in skipped_codes
     ]
 
-    # Pull recommendations for dashboard preview
     rec_data = await get_user_recommendations(current_user, db)
     resources = rec_data.get("resources", [])
+
+    analytics_data = await compute_user_analytics(db, current_user, progress, sequence)
 
     return {
         "current_topic": current_topic_label,
@@ -83,19 +175,13 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
             "display": f"Phase {phase_step} of {total_phases}: {current_phase.replace('Phase ' + str(phase_step) + ': ', '')}" if not is_completed else "Completed",
         },
         "skipped_topics": skipped_topics_list,
-        # Integrated fields for AppContext.tsx and Dashboard.tsx
         "identity_twin": {
             "target_role": current_user.get("target_role") or goal,
             "goal": goal,
             "identity_score": 85,
             "identity_drift_percentage": 12,
         },
-        "analytics": {
-            "growth_score": 88,
-            "weekly_hours_logged": 14,
-            "burnout_risk_score": 15,
-            "streak_days": current_user.get("streak", 0) or 0,
-        },
+        "analytics": analytics_data,
         "roadmap": {
             "tasks": [
                 {
@@ -110,3 +196,16 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         },
         "recommendations": resources[:4],
     }
+
+@router.get("/analytics", status_code=status.HTTP_200_OK)
+async def get_analytics(current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    user_id = str(current_user["_id"])
+    progress = await db["user_progress"].find_one({"user_id": user_id})
+    goal = (progress.get("goal") if progress else None) or current_user.get("goal") or "software_engineering"
+    year = (progress.get("year") if progress else None) or current_user.get("year") or "1st Year"
+
+    curriculum = await db["curriculum"].find_one({"goal": goal, "year": year})
+    sequence = curriculum.get("sequence", []) if curriculum else []
+
+    return await compute_user_analytics(db, current_user, progress, sequence)

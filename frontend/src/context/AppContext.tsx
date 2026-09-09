@@ -175,10 +175,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (data.analytics) {
         setAnalytics((prev) => ({
           ...prev,
-          growthPredictionScore: Math.round(data.analytics.growth_score || prev.growthPredictionScore),
-          learningHoursTotal: data.analytics.weekly_hours_logged || prev.learningHoursTotal,
-          burnoutRiskPercentage: Math.round(data.analytics.burnout_risk_score || prev.burnoutRiskPercentage),
+          growthPredictionScore: Math.round(data.analytics.growth_score ?? prev.growthPredictionScore),
+          learningHoursTotal: data.analytics.weekly_hours_logged ?? prev.learningHoursTotal,
+          burnoutRiskPercentage: Math.round(data.analytics.burnout_risk_score ?? prev.burnoutRiskPercentage),
           consistencyRate: Math.min(98, Math.round(data.analytics.streak_days ? data.analytics.streak_days * 3.5 : prev.consistencyRate)),
+          radarSkills: Array.isArray(data.analytics.radar_skills) && data.analytics.radar_skills.length > 0
+            ? data.analytics.radar_skills.map((s: any) => ({
+                subject: s.subject || s.skill || 'Skill',
+                current: Number(s.current ?? s.score ?? 0),
+                target: Number(s.target ?? 80),
+                fullMark: Number(s.fullMark ?? s.full_mark ?? 100),
+              }))
+            : prev.radarSkills,
+          weeklyHeatmap: Array.isArray(data.analytics.weekly_heatmap) && data.analytics.weekly_heatmap.length > 0
+            ? data.analytics.weekly_heatmap.map((h: any) => ({
+                day: h.day,
+                hours: Number(h.hours ?? 0),
+              }))
+            : prev.weeklyHeatmap,
         }));
       }
       if (data.roadmap && data.roadmap.tasks) {
@@ -237,9 +251,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (analyticsData) {
           setAnalytics((prev) => ({
             ...prev,
-            growthPredictionScore: Math.round(analyticsData.growth_score || prev.growthPredictionScore),
-            burnoutRiskPercentage: Math.round(analyticsData.burnout_risk_score || prev.burnoutRiskPercentage),
-            learningHoursTotal: analyticsData.weekly_hours_logged || prev.learningHoursTotal,
+            growthPredictionScore: Math.round(analyticsData.growth_score ?? prev.growthPredictionScore),
+            burnoutRiskPercentage: Math.round(analyticsData.burnout_risk_score ?? prev.burnoutRiskPercentage),
+            learningHoursTotal: analyticsData.weekly_hours_logged ?? prev.learningHoursTotal,
+            radarSkills: Array.isArray(analyticsData.radar_skills) && analyticsData.radar_skills.length > 0
+              ? analyticsData.radar_skills.map((s: any) => ({
+                  subject: s.subject || s.skill || 'Skill',
+                  current: Number(s.current ?? s.score ?? 0),
+                  target: Number(s.target ?? 80),
+                  fullMark: Number(s.fullMark ?? s.full_mark ?? 100),
+                }))
+              : prev.radarSkills,
+            weeklyHeatmap: Array.isArray(analyticsData.weekly_heatmap) && analyticsData.weekly_heatmap.length > 0
+              ? analyticsData.weekly_heatmap.map((h: any) => ({
+                  day: h.day,
+                  hours: Number(h.hours ?? 0),
+                }))
+              : prev.weeklyHeatmap,
           }));
         }
       } catch (err) {
