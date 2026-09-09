@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime, timezone
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.errors import DuplicateKeyError
 
@@ -25,8 +26,18 @@ async def signup(payload: SignupRequest):
 
     role = payload.role or "STUDENT"
     inst_id = payload.institution_id
-    if not inst_id and role in ["INSTITUTION_ADMIN", "PLATFORM_ADMIN"]:
-        inst_id = f"inst_{secrets.token_hex(4)}"
+
+    if role in ["INSTITUTION_ADMIN", "PLATFORM_ADMIN"]:
+        inst_name = (payload.institution_name or "").strip()
+        if not inst_name:
+            inst_name = f"Institution {secrets.token_hex(3)}"
+        
+        inst_doc = {
+            "name": inst_name,
+            "created_at": now_iso,
+        }
+        inst_res = await db["institutions"].insert_one(inst_doc)
+        inst_id = str(inst_res.inserted_id)
 
     user_doc = {
         "name": payload.name,
@@ -46,6 +57,12 @@ async def signup(payload: SignupRequest):
     try:
         result = await db["users"].insert_one(user_doc)
         user_doc["_id"] = result.inserted_id
+
+        if role in ["INSTITUTION_ADMIN", "PLATFORM_ADMIN"] and inst_id:
+            await db["institutions"].update_one(
+                {"_id": ObjectId(inst_id)},
+                {"$set": {"created_by_admin_id": str(user_doc["_id"])}}
+            )
     except DuplicateKeyError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

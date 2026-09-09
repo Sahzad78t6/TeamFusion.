@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, ArrowRight, ArrowLeft, Check, Target, GraduationCap, Building2, Loader2, BookCheck, FastForward } from 'lucide-react';
+import { Zap, ArrowRight, ArrowLeft, Check, Target, GraduationCap, Building2, Loader2, BookCheck, FastForward, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { useApp } from '../../context/AppContext';
-import { getCurriculumTopicsApi, CurriculumTopicItem } from '../../services/api';
+import { getCurriculumTopicsApi, getInstitutionsListApi, CurriculumTopicItem } from '../../services/api';
 
 const GOAL_OPTIONS: [string, string][] = [
   ['software_engineering', 'Software Engineering'],
@@ -32,7 +32,10 @@ export const Onboarding: React.FC = () => {
   const [goalCode, setGoalCode] = useState<string>('software_engineering');
   const [yearLabel, setYearLabel] = useState<string>('1st Year');
   const [knownTopics, setKnownTopics] = useState<string[]>([]);
-  const [college, setCollege] = useState<string>('');
+  const [institutionId, setInstitutionId] = useState<string | null>(null);
+  const [customCollegeName, setCustomCollegeName] = useState<string>('');
+  const [institutions, setInstitutions] = useState<{ id: string; name: string }[]>([]);
+  const [isLoadingInsts, setIsLoadingInsts] = useState<boolean>(false);
 
   // Curriculum topics for Step 3
   const [topics, setTopics] = useState<CurriculumTopicItem[]>([]);
@@ -40,7 +43,7 @@ export const Onboarding: React.FC = () => {
 
   const totalSteps = 4;
 
-  // Fetch topics whenever goal, year, or entering step 3
+  // Fetch topics for Step 3
   useEffect(() => {
     if (step === 3) {
       setIsLoadingTopics(true);
@@ -57,6 +60,22 @@ export const Onboarding: React.FC = () => {
         });
     }
   }, [step, goalCode, yearLabel]);
+
+  // Fetch institutions list for Step 4
+  useEffect(() => {
+    setIsLoadingInsts(true);
+    getInstitutionsListApi()
+      .then((data) => {
+        setInstitutions(data || []);
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch institutions:', err);
+        setInstitutions([]);
+      })
+      .finally(() => {
+        setIsLoadingInsts(false);
+      });
+  }, []);
 
   const toggleTopic = (topicCode: string) => {
     setKnownTopics((prev) =>
@@ -75,12 +94,15 @@ export const Onboarding: React.FC = () => {
     } else {
       setIsSubmitting(true);
       setErrorMsg('');
+      const selectedInst = institutions.find((i) => i.id === institutionId);
+      const collegeLabel = selectedInst ? selectedInst.name : customCollegeName || 'Independent';
+
       try {
         await submitOnboarding({
           goal: goalCode,
           target_role: goalCode,
           current_role: yearLabel,
-          skills: [college],
+          skills: [collegeLabel],
           interests: [],
           experience: yearLabel,
           learning_style: '',
@@ -88,6 +110,7 @@ export const Onboarding: React.FC = () => {
           preferred_content: [],
           language: 'English',
           known_topics: knownTopics,
+          institution_id: institutionId,
         });
         navigate('/dashboard');
       } catch (err: any) {
@@ -324,28 +347,77 @@ export const Onboarding: React.FC = () => {
             >
               <div className="space-y-2">
                 <span className="px-2.5 py-1 text-[10px] font-extrabold bg-cyan-500/20 text-cyan-300 rounded-full uppercase border border-cyan-500/30">
-                  Step 4 — Institution
+                  Step 4 — Institution Selection
                 </span>
                 <h3 className="text-xl font-bold text-white">Which college?</h3>
-                <p className="text-xs text-slate-400">Unlock peer cohorts, campus leaderboards, and institutional resources.</p>
+                <p className="text-xs text-slate-400">Select your registered university/college to access peer cohorts and institution assessments.</p>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Building2 className="w-5 h-5 text-slate-400" />
+                    <Building2 className="w-5 h-5 text-cyan-400" />
                   </div>
-                  <input
-                    type="text"
-                    value={college}
-                    onChange={(e) => setCollege(e.target.value)}
-                    placeholder="e.g. Stanford University, IIT Bombay, MIT..."
-                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 text-sm text-white placeholder-slate-500 transition-all"
-                  />
+                  {isLoadingInsts ? (
+                    <div className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-slate-400 flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                      <span className="text-xs">Loading registered institutions...</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={institutionId || 'NOT_LISTED'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'NOT_LISTED') {
+                          setInstitutionId(null);
+                        } else {
+                          setInstitutionId(val);
+                        }
+                      }}
+                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#181b28] border border-white/15 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 text-sm text-white transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="NOT_LISTED" className="bg-[#12141d] text-slate-300">
+                        -- Select Registered Institution --
+                      </option>
+                      {institutions.map((inst) => (
+                        <option key={inst.id} value={inst.id} className="bg-[#12141d] text-white">
+                          {inst.name}
+                        </option>
+                      ))}
+                      <option value="NOT_LISTED" className="bg-[#12141d] text-purple-300 font-bold">
+                        My institution isn't listed
+                      </option>
+                    </select>
+                  )}
                 </div>
-                <p className="text-[11px] text-slate-400">
-                  Your college helps us match you with alumni networks and local engineering events.
-                </p>
+
+                {institutionId === null && (
+                  <div className="space-y-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="font-semibold text-amber-300">Unregistered Institution Notice</p>
+                        <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                          Note: Unregistered institution accounts won't have access to institution-specific assessments or contests until linked. You can proceed as an independent learner.
+                        </p>
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      value={customCollegeName}
+                      onChange={(e) => setCustomCollegeName(e.target.value)}
+                      placeholder="Optional: Enter college name string..."
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                )}
+
+                {institutionId !== null && (
+                  <div className="p-3 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs flex items-center gap-2">
+                    <Check className="w-4 h-4 text-cyan-400" />
+                    <span>Selected: {institutions.find((i) => i.id === institutionId)?.name}</span>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -383,3 +455,4 @@ export const Onboarding: React.FC = () => {
     </div>
   );
 };
+

@@ -40,7 +40,23 @@ export interface OnboardingPayload {
   preferred_content?: string[];
   language?: string;
   known_topics?: string[];
+  institution_id?: string | null;
 }
+
+export async function getInstitutionsListApi(): Promise<{ id: string; name: string }[]> {
+  const response = await safeFetch(`${API_BASE_URL}/institutions/list`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<{ id: string; name: string }[]>(response, 'Failed to fetch registered institutions.');
+}
+
+export const getAdminAssessmentsApi = (token: string) => institutionRequest(token, '/admin/assessments');
+export const getAdminContestsApi = (token: string) => institutionRequest(token, '/admin/contests');
+export const getAssessmentResultsApi = (token: string, assessmentId: string) => institutionRequest(token, `/assessments/${assessmentId}/results`);
+export const getContestResultsApi = (token: string, contestId: string) => institutionRequest(token, `/contests/${contestId}/results`);
+export const startAssessmentAttemptApi = (token: string, assessmentId: string) => institutionRequest(token, `/assessments/${assessmentId}/start`, 'POST');
+
 
 export class ApiError extends Error {
   code: string;
@@ -145,13 +161,19 @@ async function safeParseResponse<T = any>(response: Response, defaultErrorMessag
   return trimmed as unknown as T;
 }
 
-export async function signupApi(name: string, email: string, password: string): Promise<AuthTokenResponse> {
+export async function signupApi(
+  name: string,
+  email: string,
+  password: string,
+  role?: string,
+  institution_name?: string
+): Promise<AuthTokenResponse> {
   const response = await safeFetch(`${API_BASE_URL}/auth/signup`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify({ name, email, password, role, institution_name }),
   });
 
   return await safeParseResponse<AuthTokenResponse>(response, 'Signup failed. Please try again.');
@@ -468,6 +490,7 @@ export const createAssessmentApi = (token: string, payload: unknown) => institut
 export const getAssessmentsApi = (token: string) => institutionRequest(token, '/assessments');
 export const submitAssessmentApi = (token: string, assessmentId: string, answers: Record<string, number>) => institutionRequest(token, `/assessments/${assessmentId}/submissions`, 'POST', { answers });
 export const joinCohortApi = (token: string, payload: { cohort_id?: string; code?: string }) => institutionRequest(token, '/cohorts/join', 'POST', payload);
+export const createContestApi = (token: string, payload: { cohort_id: string; question_count: number; start_time: string; end_time: string; duration_minutes?: number }) => institutionRequest(token, '/contests', 'POST', payload);
 
 // Knowledge Base Admin APIs
 export async function getKnowledgeBaseStatusApi(token: string): Promise<any> {
@@ -561,15 +584,5 @@ export async function getCurriculumTopicsApi(goal: string, year: string): Promis
     headers: { 'Content-Type': 'application/json' },
   });
   return await safeParseResponse<CurriculumTopicItem[]>(response, 'Failed to fetch curriculum topics.');
-}export async function createContestApi(
-  token: string,
-  payload: { cohort_id: string; question_count: number; start_time: string; end_time: string }
-): Promise<any> {
-  const response = await safeFetch(`${API_BASE_URL}/institutions/contests`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return await safeParseResponse(response, 'Failed to create contest session.');
 }
 

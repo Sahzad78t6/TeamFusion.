@@ -26,7 +26,12 @@ class SignupRequest(BaseModel):
     password: str = Field(..., min_length=1)
     role: Optional[UserRole] = "STUDENT"
     institution_id: Optional[str] = None
+    institution_name: Optional[str] = None
     cohort_id: Optional[str] = None
+
+class InstitutionOptionResponse(BaseModel):
+    id: str
+    name: str
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -44,6 +49,7 @@ class OnboardingRequest(BaseModel):
     preferred_content: List[str] = Field(default_factory=list)
     language: Optional[str] = "English"
     known_topics: Optional[List[str]] = Field(default_factory=list)
+    institution_id: Optional[str] = None
 
 class IdentityResponse(BaseModel):
     goal: Optional[str] = None
@@ -95,6 +101,10 @@ class AssessmentCreateRequest(BaseModel):
     year: Optional[str] = None
     topic_code: Optional[str] = None
     question_count: Optional[int] = None
+    # Time & duration limits
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    duration_minutes: Optional[int] = None
 
 class AssessmentSubmissionRequest(BaseModel):
     answers: Dict[str, int]
@@ -109,6 +119,7 @@ class ContestCreateRequest(BaseModel):
     question_count: int = Field(default=2, ge=1)
     start_time: str = Field(..., min_length=1)
     end_time: str = Field(..., min_length=1)
+    duration_minutes: Optional[int] = None
 
 class CodeSubmitRequest(BaseModel):
     question_id: str = Field(..., min_length=1)
@@ -121,3 +132,4 @@ class TestCaseResult(BaseModel):
 class CodeSubmitResponse(BaseModel):
     passed: Optional[bool]
     results: List[TestCaseResult]
+

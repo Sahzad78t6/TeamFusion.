@@ -17,6 +17,9 @@ import { Profile } from '../pages/Profile/Profile';
 import { Analytics } from '../pages/Analytics/Analytics';
 import { Assessments } from '../pages/Assessments/Assessments';
 import { InstitutionAdmin } from '../pages/InstitutionAdmin/InstitutionAdmin';
+import { ScheduleAssessment } from '../pages/InstitutionAdmin/ScheduleAssessment';
+import { ScheduleContest } from '../pages/InstitutionAdmin/ScheduleContest';
+import { ResultsLeaderboard } from '../pages/InstitutionAdmin/ResultsLeaderboard';
 import { KnowledgeBasePage } from '../pages/KnowledgeBase/KnowledgeBase';
 import { Contest } from '../pages/Contest/Contest';
 import { ProtectedRoute } from './ProtectedRoute';
@@ -73,6 +76,9 @@ export const AppRoutes: React.FC = () => {
           <Route element={<AdminOnlyRoute />}>
             <Route path="/institution/overview" element={<InstitutionAdmin />} />
             <Route path="/institution/cohorts" element={<InstitutionAdmin />} />
+            <Route path="/institution/schedule-assessment" element={<ScheduleAssessment />} />
+            <Route path="/institution/schedule-contest" element={<ScheduleContest />} />
+            <Route path="/institution/results" element={<ResultsLeaderboard />} />
             <Route path="/institution/settings" element={<InstitutionAdmin />} />
           </Route>
 

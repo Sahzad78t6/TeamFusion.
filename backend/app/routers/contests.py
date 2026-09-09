@@ -99,6 +99,20 @@ async def create_contest_session(
     current_user: dict = Depends(require_admin),
 ):
     db = get_db()
+    inst_id = current_user.get("institution_id")
+
+    # Scoping check: verify cohort belongs to admin's institution
+    cohort_doc = None
+    try:
+        cohort_doc = await db["cohorts"].find_one({"_id": ObjectId(payload.cohort_id)})
+    except Exception:
+        pass
+
+    if not cohort_doc or (inst_id and cohort_doc.get("institution_id") != inst_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cohort not found or not owned by your institution",
+        )
 
     try:
         start_dt = _parse_datetime(payload.start_time)
@@ -120,9 +134,11 @@ async def create_contest_session(
 
     session_doc = {
         "cohort_id": payload.cohort_id,
+        "institution_id": inst_id or cohort_doc.get("institution_id"),
         "question_ids": question_ids,
         "start_time": start_dt,
         "end_time": end_dt,
+        "duration_minutes": payload.duration_minutes,
         "created_at": datetime.now(timezone.utc),
     }
 
@@ -133,9 +149,11 @@ async def create_contest_session(
     return {
         "id": session_id,
         "cohort_id": payload.cohort_id,
+        "institution_id": session_doc["institution_id"],
         "question_ids": [str(qid) for qid in question_ids],
         "start_time": start_dt.isoformat(),
         "end_time": end_dt.isoformat(),
+        "duration_minutes": payload.duration_minutes,
         "created_at": session_doc["created_at"].isoformat(),
     }
 
@@ -147,6 +165,17 @@ async def get_active_contest(
     db = get_db()
     cohort_id = current_user.get("cohort_id")
     if not cohort_id:
+        return None
+
+    # Scoping check: verify student's cohort belongs to student's institution
+    cohort = None
+    try:
+        cohort = await db["cohorts"].find_one({"_id": ObjectId(cohort_id)})
+    except Exception:
+        pass
+
+    user_inst = current_user.get("institution_id")
+    if cohort and user_inst and cohort.get("institution_id") and user_inst != cohort.get("institution_id"):
         return None
 
     now = datetime.now(timezone.utc)
@@ -201,7 +230,41 @@ async def get_active_contest(
         "cohort_id": str(active_session.get("cohort_id")),
         "start_time": s_start_dt.isoformat(),
         "end_time": s_end_dt.isoformat(),
+        "duration_minutes": active_session.get("duration_minutes"),
         "questions": formatted_questions,
+    }
+
+# POST /contests/{id}/start (Student)
+@router.post("/contests/{id}/start")
+async def start_contest_attempt(
+    id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    db = get_db()
+    if not ObjectId.is_valid(id):
+        raise HTTPException(status_code=400, detail="Invalid contest id")
+
+    session = await db["contest_sessions"].find_one({"_id": ObjectId(id)})
+    if not session:
+        raise HTTPException(status_code=404, detail="Contest session not found")
+
+    user_obj_id = ObjectId(current_user["_id"])
+    now_dt = datetime.now(timezone.utc)
+    existing = await db["contest_attempts"].find_one({"contest_id": ObjectId(id), "user_id": user_obj_id})
+    if not existing:
+        await db["contest_attempts"].insert_one({
+            "contest_id": ObjectId(id),
+            "user_id": user_obj_id,
+            "start_time": now_dt,
+        })
+        start_dt = now_dt
+    else:
+        start_dt = existing.get("start_time", now_dt)
+
+    return {
+        "status": "started",
+        "start_time": start_dt.isoformat(),
+        "duration_minutes": session.get("duration_minutes"),
     }
 
 # POST /contests/{id}/submit (Student)
@@ -221,6 +284,40 @@ async def submit_contest_code(
     session = await db["contest_sessions"].find_one({"_id": ObjectId(id)})
     if not session:
         raise HTTPException(status_code=404, detail="Contest session not found")
+
+    # Scoping check: student's institution must match contest's cohort institution
+    cohort = await db["cohorts"].find_one({"_id": ObjectId(session["cohort_id"])})
+    user_inst = current_user.get("institution_id")
+    if cohort and user_inst and cohort.get("institution_id") and user_inst != cohort.get("institution_id"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Contest does not belong to your institution",
+        )
+
+    # Window & Duration enforcement
+    now_dt = datetime.now(timezone.utc)
+    s_start = _parse_datetime(session["start_time"])
+    s_end = _parse_datetime(session["end_time"])
+
+    if now_dt > s_end:
+        raise HTTPException(status_code=400, detail="Contest time window has closed")
+    if now_dt < s_start:
+        raise HTTPException(status_code=400, detail="Contest has not opened yet")
+
+    user_obj_id = ObjectId(current_user["_id"])
+    duration_min = session.get("duration_minutes")
+    if duration_min:
+        attempt = await db["contest_attempts"].find_one({"contest_id": ObjectId(id), "user_id": user_obj_id})
+        if attempt:
+            att_start = _parse_datetime(attempt["start_time"])
+            if now_dt > (att_start + timedelta(minutes=duration_min)):
+                raise HTTPException(status_code=400, detail="Contest time limit for your attempt has expired")
+        else:
+            await db["contest_attempts"].insert_one({
+                "contest_id": ObjectId(id),
+                "user_id": user_obj_id,
+                "start_time": now_dt,
+            })
 
     question = await db["coding_bank"].find_one({"_id": ObjectId(payload.question_id)})
     if not question:
@@ -248,12 +345,129 @@ async def submit_contest_code(
     submission_doc = {
         "contest_id": ObjectId(id),
         "question_id": ObjectId(payload.question_id),
-        "user_id": ObjectId(current_user["_id"]),
+        "user_id": user_obj_id,
         "code": payload.code,
         "passed": overall_passed,
         "results": [r.model_dump() for r in results],
-        "submitted_at": datetime.now(timezone.utc),
+        "submitted_at": now_dt,
     }
     await db["code_submissions"].insert_one(submission_doc)
 
     return CodeSubmitResponse(passed=overall_passed, results=results)
+
+# GET /institutions/admin/contests (Admin)
+@router.get("/institutions/admin/contests")
+async def get_admin_contests(
+    current_user: dict = Depends(require_admin),
+):
+    db = get_db()
+    inst_id = current_user.get("institution_id")
+
+    cohorts = await db["cohorts"].find({"institution_id": inst_id}).to_list(1000)
+    cohort_map = {str(c["_id"]): c.get("name", "") for c in cohorts}
+    cohort_ids = list(cohort_map.keys())
+
+    contests = await db["contest_sessions"].find({"cohort_id": {"$in": cohort_ids}}).sort("created_at", -1).to_list(500)
+    return [
+        {
+            "id": str(c["_id"]),
+            "cohort_id": c.get("cohort_id", ""),
+            "cohort_name": cohort_map.get(str(c.get("cohort_id", "")), "Cohort"),
+            "question_count": len(c.get("question_ids", [])),
+            "start_time": _parse_datetime(c["start_time"]).isoformat() if c.get("start_time") else "",
+            "end_time": _parse_datetime(c["end_time"]).isoformat() if c.get("end_time") else "",
+            "created_at": _parse_datetime(c["created_at"]).isoformat() if c.get("created_at") else ""
+        }
+        for c in contests
+    ]
+
+# GET /institutions/contests/{id}/results (Admin)
+@router.get("/institutions/contests/{id}/results")
+async def get_contest_results(
+    id: str,
+    current_user: dict = Depends(require_admin),
+):
+    db = get_db()
+    inst_id = current_user.get("institution_id")
+
+    if not ObjectId.is_valid(id):
+        raise HTTPException(status_code=400, detail="Invalid contest ID")
+
+    session = await db["contest_sessions"].find_one({"_id": ObjectId(id)})
+    if not session:
+        raise HTTPException(status_code=404, detail="Contest session not found")
+
+    cohort_id_str = str(session.get("cohort_id"))
+    cohort = await db["cohorts"].find_one({"_id": ObjectId(cohort_id_str)})
+    if not cohort or (inst_id and cohort.get("institution_id") != inst_id):
+        raise HTTPException(status_code=403, detail="Forbidden: Contest does not belong to your institution")
+
+    total_assigned = await db["users"].count_documents({
+        "cohort_id": cohort_id_str,
+        "role": "STUDENT"
+    })
+
+    submissions = await db["code_submissions"].find({"contest_id": ObjectId(id)}).to_list(1000)
+
+    # Group submissions by user_id
+    user_submissions = {}
+    for sub in submissions:
+        uid = str(sub["user_id"])
+        if uid not in user_submissions:
+            user_submissions[uid] = []
+        user_submissions[uid].append(sub)
+
+    user_ids = [ObjectId(uid) for uid in user_submissions.keys()]
+    users = await db["users"].find({"_id": {"$in": user_ids}}).to_list(len(user_ids))
+    users_map = {str(u["_id"]): u.get("name", "Student") for u in users}
+
+    attempts = await db["contest_attempts"].find({"contest_id": ObjectId(id)}).to_list(500)
+    attempts_map = {str(att["user_id"]): att.get("start_time") for att in attempts}
+
+    q_count = len(session.get("question_ids", [])) or 1
+
+    results_list = []
+    for uid, subs in user_submissions.items():
+        # Score = count of distinct passed questions / total_questions * 100
+        passed_q_ids = set()
+        last_sub_time = None
+        for s in subs:
+            if s.get("passed"):
+                passed_q_ids.add(str(s["question_id"]))
+            s_time = s.get("submitted_at")
+            if s_time and (last_sub_time is None or s_time > last_sub_time):
+                last_sub_time = s_time
+
+        score = round((len(passed_q_ids) / q_count) * 100.0, 1)
+        start_time = attempts_map.get(uid) or last_sub_time
+
+        time_taken_sec = 0
+        if last_sub_time and start_time:
+            try:
+                st = _parse_datetime(start_time)
+                et = _parse_datetime(last_sub_time)
+                time_taken_sec = max(0, int((et - st).total_seconds()))
+            except Exception:
+                pass
+
+        sub_at_str = _parse_datetime(last_sub_time).isoformat() if last_sub_time else ""
+
+        results_list.append({
+            "student_name": users_map.get(uid, "Student"),
+            "score": score,
+            "submitted_at": sub_at_str,
+            "time_taken_seconds": time_taken_sec
+        })
+
+    results_list.sort(key=lambda x: (-x["score"], x["time_taken_seconds"]))
+    for rank, item in enumerate(results_list, start=1):
+        item["rank"] = rank
+
+    return {
+        "title": "Coding Contest",
+        "cohort_name": cohort.get("name", ""),
+        "total_assigned": total_assigned,
+        "total_attempted": len(results_list),
+        "leaderboard": results_list
+    }
+

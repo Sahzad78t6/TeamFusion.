@@ -17,6 +17,7 @@ import {
   BarChart3,
   Users,
   Settings,
+  Trophy,
 } from 'lucide-react';
 
 interface NavItem {
@@ -39,13 +40,14 @@ const STUDENT_NAV: NavItem[] = [
   { label: 'Coding Contest',       path: '/contest',           icon: Code2,       badge: 'Live' },
 ];
 
-// ADMIN nav: exactly 5 items — no student pages
+// ADMIN nav: 6 dedicated items — no student pages
 const ADMIN_NAV: NavItem[] = [
-  { label: 'Overview / Analytics', path: '/institution/overview',  icon: BarChart3 },
-  { label: 'Cohorts',              path: '/institution/cohorts',   icon: Users },
-  { label: 'Assessments',          path: '/assessments',           icon: ClipboardList },
-  { label: 'Coding Contests',      path: '/contest',               icon: Code2 },
-  { label: 'Institution Settings', path: '/institution/settings',  icon: Settings },
+  { label: 'Overview / Analytics', path: '/institution/overview',            icon: BarChart3 },
+  { label: 'Cohorts',              path: '/institution/cohorts',             icon: Users },
+  { label: 'Schedule Assessment',  path: '/institution/schedule-assessment', icon: ClipboardList },
+  { label: 'Schedule Contest',     path: '/institution/schedule-contest',    icon: Code2 },
+  { label: 'Results & Leaderboard',path: '/institution/results',             icon: Trophy },
+  { label: 'Institution Settings', path: '/institution/settings',            icon: Settings },
 ];
 import { useApp } from '../../context/AppContext';
 

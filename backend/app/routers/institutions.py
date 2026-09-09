@@ -11,6 +11,7 @@ from app.models import (
     CohortCreateRequest,
     CohortResponse,
     InstitutionAnalyticsResponse,
+    InstitutionOptionResponse,
     JoinCohortRequest,
 )
 
@@ -27,13 +28,28 @@ def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
 async def ensure_institution_id(db, user: dict) -> str:
     inst_id = user.get("institution_id")
     if not inst_id:
-        inst_id = f"inst_{str(user['_id'])[-6:]}"
+        inst_doc = {
+            "name": f"Institution {str(user['_id'])[-6:]}",
+            "created_by_admin_id": str(user["_id"]),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        inst_res = await db["institutions"].insert_one(inst_doc)
+        inst_id = str(inst_res.inserted_id)
         await db["users"].update_one(
             {"_id": user["_id"]},
             {"$set": {"institution_id": inst_id}}
         )
         user["institution_id"] = inst_id
     return inst_id
+
+@router.get("/list", response_model=List[InstitutionOptionResponse])
+async def get_institutions_list():
+    db = get_db()
+    insts = await db["institutions"].find({}).to_list(500)
+    return [
+        InstitutionOptionResponse(id=str(i["_id"]), name=i.get("name", "Unnamed Institution"))
+        for i in insts
+    ]
 
 @router.get("/analytics", response_model=InstitutionAnalyticsResponse)
 async def get_analytics(
@@ -117,6 +133,31 @@ async def create_cohort(
         section=doc["section"],
     )
 
+@router.get("/admin/assessments")
+async def get_admin_assessments(
+    current_user: dict = Depends(require_admin),
+):
+    db = get_db()
+    inst_id = await ensure_institution_id(db, current_user)
+
+    cohorts = await db["cohorts"].find({"institution_id": inst_id}).to_list(1000)
+    cohort_map = {str(c["_id"]): c.get("name", "") for c in cohorts}
+    cohort_ids = list(cohort_map.keys())
+
+    assessments = await db["assessments"].find({"cohort_id": {"$in": cohort_ids}}).sort("created_at", -1).to_list(500)
+    return [
+        {
+            "id": str(a["_id"]),
+            "title": a.get("title", ""),
+            "cohort_id": a.get("cohort_id", ""),
+            "cohort_name": cohort_map.get(a.get("cohort_id", ""), "Cohort"),
+            "start_time": a.get("start_time", ""),
+            "end_time": a.get("end_time", ""),
+            "created_at": a.get("created_at", "")
+        }
+        for a in assessments
+    ]
+
 @router.post("/cohorts/join")
 async def join_cohort(
     payload: JoinCohortRequest,
@@ -169,6 +210,18 @@ async def create_assessment(
     db = get_db()
     inst_id = await ensure_institution_id(db, current_user)
 
+    # Scoping check: verify cohort belongs to admin's institution
+    cohort_doc = None
+    try:
+        cohort_doc = await db["cohorts"].find_one({"_id": ObjectId(payload.cohort_id)})
+    except Exception:
+        pass
+    if not cohort_doc or cohort_doc.get("institution_id") != inst_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cohort not found or not owned by your institution",
+        )
+
     question_ids = []
 
     # Mode B: Bank-based random sampling
@@ -210,20 +263,22 @@ async def create_assessment(
         )
 
     now = datetime.now(timezone.utc)
-    start_time = now.isoformat()
-    end_time = (now + timedelta(hours=1)).isoformat()
+    start_time = payload.start_time or now.isoformat()
+    end_time = payload.end_time or (now + timedelta(hours=1)).isoformat()
     created_at = now.isoformat()
 
     assessment_doc = {
         "title": payload.title,
         "description": payload.description or "",
         "cohort_id": payload.cohort_id,
+        "institution_id": inst_id,
         "skill": payload.skill,
         "year": payload.year,
         "topic_code": payload.topic_code,
         "question_ids": question_ids,
         "start_time": start_time,
         "end_time": end_time,
+        "duration_minutes": payload.duration_minutes,
         "created_at": created_at,
     }
 
@@ -234,10 +289,12 @@ async def create_assessment(
         "title": assessment_doc["title"],
         "description": assessment_doc["description"],
         "cohort_id": assessment_doc["cohort_id"],
+        "institution_id": inst_id,
         "skill": assessment_doc["skill"],
         "question_ids": [str(qid) for qid in question_ids],
         "start_time": start_time,
         "end_time": end_time,
+        "duration_minutes": payload.duration_minutes,
         "created_at": created_at,
     }
 
@@ -251,7 +308,11 @@ async def get_assessments(
     # If student has no cohort yet, try to auto-match first cohort of matching year
     if not cohort_id:
         user_year = current_user.get("year") or "1st Year"
-        matching_cohort = await db["cohorts"].find_one({"year": user_year})
+        user_inst = current_user.get("institution_id")
+        query = {"year": user_year}
+        if user_inst:
+            query["institution_id"] = user_inst
+        matching_cohort = await db["cohorts"].find_one(query)
         if matching_cohort:
             cohort_id = str(matching_cohort["_id"])
             await db["users"].update_one(
@@ -265,6 +326,20 @@ async def get_assessments(
             )
 
     if not cohort_id:
+        return []
+
+    # Scoping check: verify student's cohort belongs to student's institution
+    cohort = None
+    try:
+        cohort = await db["cohorts"].find_one({"_id": ObjectId(cohort_id)})
+    except Exception:
+        pass
+
+    if not cohort:
+        return []
+
+    user_inst = current_user.get("institution_id")
+    if user_inst and cohort.get("institution_id") and user_inst != cohort.get("institution_id"):
         return []
 
     now_dt = datetime.now(timezone.utc)
@@ -302,10 +377,46 @@ async def get_assessments(
             "title": a["title"],
             "description": a.get("description", ""),
             "skill": a.get("skill", ""),
+            "duration_minutes": a.get("duration_minutes"),
+            "end_time": a.get("end_time"),
             "questions": resolved_questions,
         })
 
     return result
+
+@router.post("/assessments/{id}/start")
+async def start_assessment_attempt(
+    id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    db = get_db()
+    user_id_str = str(current_user["_id"])
+    try:
+        a_obj_id = ObjectId(id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid assessment id")
+
+    assessment = await db["assessments"].find_one({"_id": a_obj_id})
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    existing = await db["assessment_attempts"].find_one({"assessment_id": id, "user_id": user_id_str})
+    if not existing:
+        await db["assessment_attempts"].insert_one({
+            "assessment_id": id,
+            "user_id": user_id_str,
+            "start_time": now_iso,
+        })
+        start_time_res = now_iso
+    else:
+        start_time_res = existing["start_time"]
+
+    return {
+        "status": "started",
+        "start_time": start_time_res,
+        "duration_minutes": assessment.get("duration_minutes"),
+    }
 
 @router.post("/assessments/{id}/submissions")
 async def submit_assessment(
@@ -329,6 +440,40 @@ async def submit_assessment(
             detail="Assessment not found",
         )
 
+    # Scoping check: student's institution must match assessment's cohort institution
+    cohort = await db["cohorts"].find_one({"_id": ObjectId(assessment["cohort_id"])})
+    user_inst = current_user.get("institution_id")
+    if cohort and user_inst and cohort.get("institution_id") and user_inst != cohort.get("institution_id"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Assessment does not belong to your institution",
+        )
+
+    # Window & Duration enforcement
+    now_dt = datetime.now(timezone.utc)
+    st = datetime.fromisoformat(assessment["start_time"].replace("Z", "+00:00"))
+    et = datetime.fromisoformat(assessment["end_time"].replace("Z", "+00:00"))
+
+    if now_dt > et:
+        raise HTTPException(status_code=400, detail="Assessment time window has closed")
+    if now_dt < st:
+        raise HTTPException(status_code=400, detail="Assessment has not opened yet")
+
+    user_id_str = str(current_user["_id"])
+    duration_min = assessment.get("duration_minutes")
+    if duration_min:
+        attempt = await db["assessment_attempts"].find_one({"assessment_id": id, "user_id": user_id_str})
+        if attempt:
+            att_start = datetime.fromisoformat(attempt["start_time"].replace("Z", "+00:00"))
+            if now_dt > (att_start + timedelta(minutes=duration_min)):
+                raise HTTPException(status_code=400, detail="Assessment time limit for your attempt has expired")
+        else:
+            await db["assessment_attempts"].insert_one({
+                "assessment_id": id,
+                "user_id": user_id_str,
+                "start_time": now_dt.isoformat(),
+            })
+
     q_ids = assessment.get("question_ids", [])
     questions = await db["quiz_bank"].find({"_id": {"$in": q_ids}}).to_list(len(q_ids))
 
@@ -346,12 +491,82 @@ async def submit_assessment(
 
     submission_doc = {
         "assessment_id": id,
-        "user_id": str(current_user["_id"]),
+        "user_id": user_id_str,
         "answers": payload.answers,
         "score": round(score, 1),
-        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "submitted_at": now_dt.isoformat(),
     }
 
     await db["submissions"].insert_one(submission_doc)
 
     return {"score": round(score, 1)}
+
+@router.get("/assessments/{id}/results")
+async def get_assessment_results(
+    id: str,
+    current_user: dict = Depends(require_admin),
+):
+    db = get_db()
+    inst_id = await ensure_institution_id(db, current_user)
+
+    try:
+        a_obj_id = ObjectId(id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid assessment ID")
+
+    assessment = await db["assessments"].find_one({"_id": a_obj_id})
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    cohort_id_str = assessment.get("cohort_id")
+    cohort = await db["cohorts"].find_one({"_id": ObjectId(cohort_id_str)})
+    if not cohort or cohort.get("institution_id") != inst_id:
+        raise HTTPException(status_code=403, detail="Forbidden: Assessment does not belong to your institution")
+
+    total_assigned = await db["users"].count_documents({
+        "cohort_id": cohort_id_str,
+        "role": "STUDENT"
+    })
+
+    submissions = await db["submissions"].find({"assessment_id": id}).to_list(500)
+    user_ids = [ObjectId(s["user_id"]) for s in submissions if ObjectId.is_valid(s.get("user_id", ""))]
+    users = await db["users"].find({"_id": {"$in": user_ids}}).to_list(len(user_ids))
+    users_map = {str(u["_id"]): u.get("name", "Student") for u in users}
+
+    attempts = await db["assessment_attempts"].find({"assessment_id": id}).to_list(500)
+    attempts_map = {att["user_id"]: att.get("start_time") for att in attempts}
+
+    results_list = []
+    for sub in submissions:
+        uid = sub.get("user_id")
+        sub_time = sub.get("submitted_at")
+        start_time = attempts_map.get(uid) or sub_time
+
+        time_taken_sec = 0
+        if sub_time and start_time:
+            try:
+                st = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+                et = datetime.fromisoformat(sub_time.replace("Z", "+00:00"))
+                time_taken_sec = max(0, int((et - st).total_seconds()))
+            except Exception:
+                pass
+
+        results_list.append({
+            "student_name": users_map.get(uid, "Student"),
+            "score": sub.get("score", 0),
+            "submitted_at": sub_time,
+            "time_taken_seconds": time_taken_sec
+        })
+
+    results_list.sort(key=lambda x: (-x["score"], x["time_taken_seconds"]))
+    for rank, item in enumerate(results_list, start=1):
+        item["rank"] = rank
+
+    return {
+        "title": assessment.get("title", ""),
+        "cohort_name": cohort.get("name", ""),
+        "total_assigned": total_assigned,
+        "total_attempted": len(results_list),
+        "leaderboard": results_list
+    }
+

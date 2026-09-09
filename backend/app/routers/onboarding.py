@@ -1,3 +1,4 @@
+from bson import ObjectId
 from fastapi import APIRouter, Depends, status
 
 from app.auth import get_current_user, to_user_response
@@ -13,18 +14,38 @@ async def submit_onboarding(
 ):
     db = get_db()
     user_id = current_user["_id"]
-    college_val = payload.skills[0] if payload.skills and len(payload.skills) > 0 else ""
+
+    inst_name = ""
+    inst_id = payload.institution_id
+    if inst_id:
+        try:
+            inst_doc = await db["institutions"].find_one({"_id": ObjectId(inst_id)})
+            if inst_doc:
+                inst_name = inst_doc.get("name", "")
+        except Exception:
+            pass
+
+    college_val = inst_name or (payload.skills[0] if payload.skills and len(payload.skills) > 0 else "")
 
     update_fields = {
         "goal": payload.goal,
         "year": payload.current_role,
         "college": college_val,
+        "institution_id": inst_id,
         "onboarding_completed": True,
     }
 
-    # Auto-assign cohort_id if available matching college, year, or existing cohort
+    # Auto-assign cohort_id matching institution and year
     matching_cohort = None
-    if college_val:
+    if inst_id:
+        matching_cohort = await db["cohorts"].find_one({
+            "institution_id": inst_id,
+            "year": payload.current_role or "1st Year"
+        })
+        if not matching_cohort:
+            matching_cohort = await db["cohorts"].find_one({"institution_id": inst_id})
+
+    if not matching_cohort and college_val:
         matching_cohort = await db["cohorts"].find_one({"name": college_val})
     if not matching_cohort and payload.current_role:
         matching_cohort = await db["cohorts"].find_one({"year": payload.current_role})
@@ -33,7 +54,8 @@ async def submit_onboarding(
 
     if matching_cohort:
         update_fields["cohort_id"] = str(matching_cohort["_id"])
-        update_fields["institution_id"] = matching_cohort.get("institution_id")
+        if matching_cohort.get("institution_id"):
+            update_fields["institution_id"] = matching_cohort.get("institution_id")
 
     await db["users"].update_one(
         {"_id": user_id},
