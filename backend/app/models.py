@@ -11,6 +11,9 @@ class UserResponse(BaseModel):
     created_at: str
     role: UserRole = "STUDENT"
     institution_id: Optional[str] = None
+    institution_name: Optional[str] = None
+    college: Optional[str] = None
+    year: Optional[str] = None
     onboarding_completed: bool = False
 
 class AuthResponse(BaseModel):

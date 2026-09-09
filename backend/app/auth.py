@@ -63,6 +63,9 @@ def to_user_response(user_doc: dict) -> UserResponse:
     else:
         created_at_str = datetime.now(timezone.utc).isoformat()
 
+    inst_name = user_doc.get("institution_name") or user_doc.get("college")
+    college_val = user_doc.get("college") or user_doc.get("institution_name")
+
     return UserResponse(
         id=str(user_doc["_id"]),
         name=user_doc.get("name", ""),
@@ -70,6 +73,9 @@ def to_user_response(user_doc: dict) -> UserResponse:
         created_at=created_at_str,
         role=user_doc.get("role", "STUDENT"),
         institution_id=user_doc.get("institution_id"),
+        institution_name=inst_name,
+        college=college_val,
+        year=user_doc.get("year"),
         onboarding_completed=bool(user_doc.get("onboarding_completed", False))
     )
 

@@ -16,6 +16,9 @@ export interface AuthUserResponse {
   created_at?: string;
   role?: 'STUDENT' | 'INSTITUTION_ADMIN' | 'PLATFORM_ADMIN';
   institution_id?: string | null;
+  institution_name?: string | null;
+  college?: string | null;
+  year?: string | null;
   cohort_id?: string | null;
   onboarding_completed?: boolean;
 }

@@ -110,6 +110,16 @@ async def login(payload: LoginRequest):
 
 @router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def me(current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    inst_id = current_user.get("institution_id")
+    if inst_id and not current_user.get("institution_name") and not current_user.get("college"):
+        try:
+            inst_doc = await db["institutions"].find_one({"_id": ObjectId(inst_id)})
+            if inst_doc:
+                current_user["institution_name"] = inst_doc.get("name")
+                current_user["college"] = inst_doc.get("name")
+        except Exception:
+            pass
     return to_user_response(current_user)
 
 @router.post("/logout", status_code=status.HTTP_200_OK)

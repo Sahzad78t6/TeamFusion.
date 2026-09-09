@@ -31,6 +31,7 @@ async def submit_onboarding(
         "goal": payload.goal,
         "year": payload.current_role,
         "college": college_val,
+        "institution_name": college_val,
         "institution_id": inst_id,
         "onboarding_completed": True,
     }

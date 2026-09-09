@@ -123,12 +123,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('growthos_access_token', accessToken);
     localStorage.setItem('growthos_refresh_token', refreshToken);
 
+    const instName = authUser.institution_name || authUser.college || '';
     setUser((prev) => ({
       ...prev,
       id: authUser.id,
       name: authUser.name || prev.name,
       email: authUser.email || prev.email,
       role: authUser.role || prev.role,
+      institution_id: authUser.institution_id || prev.institution_id,
+      institution_name: instName || prev.institution_name,
+      title: instName || prev.title,
+      location: instName || prev.location,
+      year: authUser.year || prev.year,
+      onboarding_completed: authUser.onboarding_completed ?? prev.onboarding_completed,
     }));
   };
 
@@ -302,6 +309,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (authToken) {
       const res = await submitOnboardingApi(authToken, payload);
+      if (res) {
+        const instName = res.institution_name || res.college || '';
+        setUser((prev) => ({
+          ...prev,
+          institution_id: res.institution_id || prev.institution_id,
+          institution_name: instName || prev.institution_name,
+          title: instName || prev.title,
+          location: instName || prev.location,
+          year: res.year || prev.year,
+          onboarding_completed: true,
+        }));
+      }
       await refreshDashboard();
       return res;
     }
@@ -342,12 +361,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (authToken) {
       getMeApi(authToken)
         .then((me) => {
+          const instName = me.institution_name || me.college || '';
           setUser((prev) => ({
             ...prev,
             id: me.id,
             name: me.name || prev.name,
             email: me.email || prev.email,
             role: me.role || prev.role,
+            institution_id: me.institution_id || prev.institution_id,
+            institution_name: instName || prev.institution_name,
+            title: instName || prev.title,
+            location: instName || prev.location,
+            year: me.year || prev.year,
+            onboarding_completed: me.onboarding_completed ?? prev.onboarding_completed,
           }));
 
           // Role-based post-login redirect

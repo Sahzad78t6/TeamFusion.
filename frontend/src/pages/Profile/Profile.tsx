@@ -108,17 +108,17 @@ export const Profile: React.FC = () => {
                 <Users className="w-5 h-5 text-indigo-400" />
                 Institution & Academic Year
               </h3>
-              <Badge variant="cyan">{user.year || '1st Year'}</Badge>
+              <Badge variant="cyan">{user.year || 'Not set'}</Badge>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-xs text-slate-300 pt-2">
               <div>
                 <span className="text-slate-400">Institution: </span>
-                <span className="text-white font-semibold">{user.title || user.location || 'Registered Institution'}</span>
+                <span className="text-white font-semibold">{user.institution_name || user.title || user.location || 'Not set'}</span>
               </div>
               <div className="hidden sm:block text-slate-600">•</div>
               <div>
                 <span className="text-slate-400">Academic Year: </span>
-                <span className="text-indigo-300 font-semibold">{user.year || '1st Year'}</span>
+                <span className="text-indigo-300 font-semibold">{user.year || 'Not set'}</span>
               </div>
             </div>
           </div>

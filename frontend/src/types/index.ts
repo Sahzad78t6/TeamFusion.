@@ -25,7 +25,9 @@ export interface UserProfile {
   certificates: Certificate[];
   role?: 'STUDENT' | 'INSTITUTION_ADMIN' | 'PLATFORM_ADMIN';
   institution_id?: string;
+  institution_name?: string;
   year?: string;
+  onboarding_completed?: boolean;
 }
 
 export interface Achievement {
