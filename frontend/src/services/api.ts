@@ -645,4 +645,24 @@ export async function getProfileStatsApi(token: string): Promise<ProfileStatsRes
   return await safeParseResponse<ProfileStatsResponse>(response, 'Failed to fetch profile stats.');
 }
 
+export async function getVapidPublicKeyApi(): Promise<{ public_key: string }> {
+  const response = await safeFetch(`${API_BASE_URL}/push/vapid-public-key`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<{ public_key: string }>(response, 'Failed to fetch VAPID public key.');
+}
+
+export async function subscribePushApi(token: string, subscription: any): Promise<{ status: string; user_id: string }> {
+  const response = await safeFetch(`${API_BASE_URL}/push/subscribe`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(subscription),
+  });
+  return await safeParseResponse<{ status: string; user_id: string }>(response, 'Failed to subscribe to Web Push notifications.');
+}
+
 

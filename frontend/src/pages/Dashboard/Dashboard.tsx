@@ -17,16 +17,38 @@ import {
   ChevronDown,
   ChevronRight,
   BookCheck,
+  Bell,
+  X,
+  BellRing,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { ProgressRing } from '../../components/common/ProgressRing';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
+import { subscribeToPush } from '../../utils/pushNotifications';
 
 export const Dashboard: React.FC = () => {
-  const { user, identityTwin, tasks, toggleTask, opportunities, learningResources, analytics, setIsCopilotOpen, curriculumPlan, phaseInfo, skippedTopics } = useApp();
+  const { user, identityTwin, tasks, toggleTask, opportunities, learningResources, analytics, setIsCopilotOpen, curriculumPlan, phaseInfo, skippedTopics, authToken } = useApp();
   const [isSkippedOpen, setIsSkippedOpen] = useState(false);
+
+  const [showPushBanner, setShowPushBanner] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    return Notification.permission === 'default';
+  });
+  const [pushStatus, setPushStatus] = useState<'idle' | 'enabling' | 'enabled' | 'failed'>('idle');
+
+  const handleEnablePush = async () => {
+    if (!authToken) return;
+    setPushStatus('enabling');
+    const success = await subscribeToPush(authToken);
+    if (success) {
+      setPushStatus('enabled');
+      setTimeout(() => setShowPushBanner(false), 2000);
+    } else {
+      setPushStatus('failed');
+    }
+  };
 
   const completedCount = tasks.filter((t) => t.isCompleted).length;
   const taskProgress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
@@ -77,6 +99,39 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Web Push Notifications Prompt Banner */}
+      {showPushBanner && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-purple-950/50 to-indigo-950/40 border border-amber-500/30 flex items-center justify-between gap-4 backdrop-blur-xl shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+              <BellRing className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-xs font-extrabold text-white">Enable Real-Time Web Push Alerts</h4>
+              <p className="text-[11px] text-slate-300">
+                Get notified when you complete a topic milestone or if you&apos;re falling behind on your daily learning streak.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="glow"
+              onClick={handleEnablePush}
+              disabled={pushStatus === 'enabling' || pushStatus === 'enabled'}
+            >
+              {pushStatus === 'enabling' ? 'Enabling...' : pushStatus === 'enabled' ? 'Notifications Enabled!' : 'Enable Notifications'}
+            </Button>
+            <button
+              onClick={() => setShowPushBanner(false)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Career Pathway Strategy & Phase Progress Banner */}
       {(curriculumPlan || phaseInfo?.display) && (

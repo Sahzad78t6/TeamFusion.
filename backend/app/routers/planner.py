@@ -97,6 +97,18 @@ async def update_planner_task(
             await issue_credential_if_not_exists(
                 db, user_id, "roadmap_completion", f"{goal_label} Mastery Certificate", {"goal": goal, "year": year}
             )
+
+        # Immediate Web Push Notification on task completion (fire and forget)
+        from app.services.push import send_push
+        completed_topic_label = task_id.replace("_", " ").title()
+        next_topic = get_current_topic(sequence, list(new_completed))
+        next_topic_label = next_topic.get("label") if next_topic else None
+        send_push(
+            user_id,
+            title="Topic completed! 🎉",
+            body=f"You finished {completed_topic_label}. Next up: {next_topic_label or 'you\'re done with this roadmap!'}",
+            url="/dashboard"
+        )
     else:
         await db["user_progress"].update_one(
             {"user_id": user_id},

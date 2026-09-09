@@ -15,16 +15,31 @@ from app.routers.contests import router as contests_router
 from app.routers.curriculum import router as curriculum_router
 from app.routers.learning import router as learning_router
 from app.routers.profile import router as profile_router
+from app.routers.push import router as push_router
+from app.services.inactivity_job import check_inactive_users
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("growthos.main")
+
+scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting GrowthOS backend...")
     await init_db()
+    try:
+        scheduler.add_job(check_inactive_users, 'interval', hours=24)
+        scheduler.start()
+        logger.info("APScheduler started for inactivity push notifications.")
+    except Exception as exc:
+        logger.warning(f"Failed to start APScheduler: {exc}")
     yield
     logger.info("Shutting down GrowthOS backend...")
+    try:
+        scheduler.shutdown(wait=False)
+    except Exception:
+        pass
     await close_db()
 
 app = FastAPI(
@@ -66,6 +81,7 @@ app.include_router(institutions_router, prefix="/institutions")
 app.include_router(contests_router)
 app.include_router(learning_router)
 app.include_router(profile_router)
+app.include_router(push_router)
 
 
 @app.get("/health")
