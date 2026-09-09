@@ -23,6 +23,7 @@ import {
   getReflectionsApi,
   markNotificationReadApi,
   getOpportunitiesApi,
+  checkinApi,
   OnboardingPayload,
 } from '../services/api';
 
@@ -402,7 +403,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             location: instName || prev.location,
             year: me.year || prev.year,
             onboarding_completed: me.onboarding_completed ?? prev.onboarding_completed,
+            streak: me.current_streak ?? me.streak ?? prev.streak ?? 0,
+            current_streak: me.current_streak ?? me.streak ?? prev.current_streak ?? 0,
+            longest_streak: me.longest_streak ?? prev.longest_streak ?? 0,
           }));
+
+          // Trigger daily check-in once per session load
+          checkinApi(authToken)
+            .then((chk) => {
+              setUser((prev) => ({
+                ...prev,
+                streak: chk.current_streak,
+                current_streak: chk.current_streak,
+                longest_streak: chk.longest_streak,
+              }));
+            })
+            .catch(() => {});
 
           // Role-based post-login redirect
           const currentPath = window.location.pathname;

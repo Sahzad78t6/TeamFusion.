@@ -66,6 +66,9 @@ def to_user_response(user_doc: dict) -> UserResponse:
     inst_name = user_doc.get("institution_name") or user_doc.get("college")
     college_val = user_doc.get("college") or user_doc.get("institution_name")
 
+    c_streak = int(user_doc.get("current_streak") or user_doc.get("streak") or 0)
+    l_streak = int(user_doc.get("longest_streak") or c_streak)
+
     return UserResponse(
         id=str(user_doc["_id"]),
         name=user_doc.get("name", ""),
@@ -76,7 +79,11 @@ def to_user_response(user_doc: dict) -> UserResponse:
         institution_name=inst_name,
         college=college_val,
         year=user_doc.get("year"),
-        onboarding_completed=bool(user_doc.get("onboarding_completed", False))
+        onboarding_completed=bool(user_doc.get("onboarding_completed", False)),
+        current_streak=c_streak,
+        longest_streak=l_streak,
+        streak=c_streak,
+        last_active_date=user_doc.get("last_active_date"),
     )
 
 async def get_current_user(

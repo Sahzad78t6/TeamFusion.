@@ -125,3 +125,49 @@ async def me(current_user: dict = Depends(get_current_user)):
 @router.post("/logout", status_code=status.HTTP_200_OK)
 async def logout(current_user: dict = Depends(get_current_user)):
     return {}
+
+@router.post("/checkin", status_code=status.HTTP_200_OK)
+async def checkin(current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    today_dt = datetime.now(timezone.utc).date()
+    today_str = today_dt.strftime("%Y-%m-%d")
+
+    last_active = current_user.get("last_active_date")
+    curr_streak = int(current_user.get("current_streak") or current_user.get("streak") or 0)
+    long_streak = int(current_user.get("longest_streak") or curr_streak)
+
+    if not last_active:
+        new_streak = 1
+    else:
+        try:
+            last_dt = datetime.strptime(last_active, "%Y-%m-%d").date()
+            diff = (today_dt - last_dt).days
+            if diff == 0:
+                new_streak = max(1, curr_streak)
+            elif diff == 1:
+                new_streak = curr_streak + 1
+            else:
+                new_streak = 1
+        except Exception:
+            new_streak = 1
+
+    new_longest = max(long_streak, new_streak)
+
+    await db["users"].update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {
+            "last_active_date": today_str,
+            "current_streak": new_streak,
+            "longest_streak": new_longest,
+            "streak": new_streak
+        }}
+    )
+
+    if new_streak >= 7:
+        from app.rewards import award_achievement_if_not_exists
+        await award_achievement_if_not_exists(
+            db, str(current_user["_id"]), "streak_7", "Week Warrior", "Achieved a 7-day learning streak", "flame"
+        )
+
+    return {"current_streak": new_streak, "longest_streak": new_longest}
+

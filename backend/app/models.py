@@ -15,6 +15,10 @@ class UserResponse(BaseModel):
     college: Optional[str] = None
     year: Optional[str] = None
     onboarding_completed: bool = False
+    current_streak: int = 0
+    longest_streak: int = 0
+    streak: int = 0
+    last_active_date: Optional[str] = None
 
 class AuthResponse(BaseModel):
     access_token: str
