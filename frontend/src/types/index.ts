@@ -18,6 +18,8 @@ export interface UserProfile {
   experienceLevel: string;
   location: string;
   streak: number;
+  current_streak?: number;
+  longest_streak?: number;
   growthScore: number;
   identityScore: number;
   joinedDate: string;

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth import get_current_user
 from app.db import get_db
+from app.rewards import award_achievement_if_not_exists, issue_credential_if_not_exists
 from app.models import (
     AssessmentCreateRequest,
     AssessmentSubmissionRequest,
@@ -353,6 +354,16 @@ async def submit_assessment(
     }
 
     await db["submissions"].insert_one(submission_doc)
+
+    if score >= 90.0:
+        await award_achievement_if_not_exists(db, user_id_str, "quiz_ace")
+        await issue_credential_if_not_exists(
+            db,
+            user_id_str,
+            "assessment_score",
+            f"Assessment Ace: {assessment.get('title', 'Assessment')}",
+            {"assessment_title": assessment.get("title", "Assessment"), "score": round(score, 1)}
+        )
 
     return {"score": round(score, 1)}
 

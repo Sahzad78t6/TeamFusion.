@@ -21,6 +21,9 @@ export interface AuthUserResponse {
   year?: string | null;
   cohort_id?: string | null;
   onboarding_completed?: boolean;
+  streak?: number;
+  current_streak?: number;
+  longest_streak?: number;
 }
 
 export interface AuthTokenResponse {
@@ -564,6 +567,82 @@ export async function getLearningVideosApi(token: string, topicCode: string, que
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   });
   return await safeParseResponse<{ videos: any[] }>(response, 'Failed to fetch learning videos.');
+}
+
+export interface CheckinResponse {
+  current_streak: number;
+  longest_streak: number;
+}
+
+export async function checkinApi(token: string): Promise<CheckinResponse> {
+  const response = await safeFetch(`${API_BASE_URL}/auth/checkin`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<CheckinResponse>(response, 'Failed to perform daily check-in.');
+}
+
+export interface AchievementItem {
+  id: string;
+  badge_code: string;
+  label: string;
+  description: string;
+  icon: string;
+  unlocked_at: string;
+}
+
+export async function getProfileAchievementsApi(token: string): Promise<AchievementItem[]> {
+  const response = await safeFetch(`${API_BASE_URL}/profile/achievements`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<AchievementItem[]>(response, 'Failed to fetch achievements.');
+}
+
+export interface CredentialItem {
+  id: string;
+  title: string;
+  type: string;
+  issued_at: string;
+  verify_code: string;
+  detail?: any;
+}
+
+export async function getProfileCredentialsApi(token: string): Promise<CredentialItem[]> {
+  const response = await safeFetch(`${API_BASE_URL}/profile/credentials`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<CredentialItem[]>(response, 'Failed to fetch credentials.');
+}
+
+export interface JourneyEntryItem {
+  topic_code: string;
+  title: string;
+  completed_at?: string;
+}
+
+export async function getProfileJourneyApi(token: string): Promise<JourneyEntryItem[]> {
+  const response = await safeFetch(`${API_BASE_URL}/profile/journey`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<JourneyEntryItem[]>(response, 'Failed to fetch learning journey.');
+}
+
+export interface ProfileStatsResponse {
+  topics_completed: number;
+  current_streak: number;
+  longest_streak: number;
+  assessments_taken: number;
+}
+
+export async function getProfileStatsApi(token: string): Promise<ProfileStatsResponse> {
+  const response = await safeFetch(`${API_BASE_URL}/profile/stats`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<ProfileStatsResponse>(response, 'Failed to fetch profile stats.');
 }
 
 

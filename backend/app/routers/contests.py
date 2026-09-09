@@ -11,6 +11,7 @@ import httpx
 
 from app.auth import get_current_user
 from app.db import get_db
+from app.rewards import award_achievement_if_not_exists
 from app.models import CodeSubmitRequest, CodeSubmitResponse, ContestCreateRequest, TestCaseResult
 
 logger = logging.getLogger("growthos.contests")
@@ -333,6 +334,9 @@ async def submit_contest_code(
         "submitted_at": now_dt,
     }
     await db["code_submissions"].insert_one(submission_doc)
+
+    if overall_passed is True:
+        await award_achievement_if_not_exists(db, str(user_obj_id), "contest_solver")
 
     return CodeSubmitResponse(passed=overall_passed, results=results, error=error_msg)
 
