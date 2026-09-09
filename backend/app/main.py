@@ -30,15 +30,23 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+import os
+
 # Enable CORS
+_allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://team-fusion-ipx2.vercel.app",
+]
+_env_frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+if _env_frontend and _env_frontend not in _allowed_origins:
+    _allowed_origins.append(_env_frontend)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

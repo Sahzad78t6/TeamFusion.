@@ -7,7 +7,7 @@ export const API_BASE_URL = VITE_API_URL
   ? VITE_API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '')
   : IS_DEV
   ? 'http://localhost:8000'
-  : 'https://teamfusion-96bi.onrender.com';
+  : 'https://teamfusion-1.onrender.com';
 
 export interface AuthUserResponse {
   id: string;

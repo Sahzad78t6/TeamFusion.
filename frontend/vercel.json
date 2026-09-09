@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://teamfusion-96bi.onrender.com/api/$1"
+      "destination": "https://teamfusion-1.onrender.com/api/$1"
     },
     {
       "source": "/(.*)",
