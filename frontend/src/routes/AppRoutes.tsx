@@ -20,7 +20,6 @@ import { InstitutionAdmin } from '../pages/InstitutionAdmin/InstitutionAdmin';
 import { ScheduleAssessment } from '../pages/InstitutionAdmin/ScheduleAssessment';
 import { ScheduleContest } from '../pages/InstitutionAdmin/ScheduleContest';
 import { ResultsLeaderboard } from '../pages/InstitutionAdmin/ResultsLeaderboard';
-import { KnowledgeBasePage } from '../pages/KnowledgeBase/KnowledgeBase';
 import { Contest } from '../pages/Contest/Contest';
 import { ProtectedRoute } from './ProtectedRoute';
 import { useApp } from '../context/AppContext';
@@ -69,7 +68,6 @@ export const AppRoutes: React.FC = () => {
             <Route path="/opportunities" element={<Opportunity />} />
             <Route path="/planner" element={<Planner />} />
             <Route path="/reflection" element={<Reflection />} />
-            <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
           </Route>
 
           {/* Admin-only routes — students get redirected to /dashboard */}

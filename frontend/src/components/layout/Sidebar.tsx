@@ -12,7 +12,6 @@ import {
   ChevronRight,
   Zap,
   ClipboardList,
-  HardDrive,
   Code2,
   BarChart3,
   Users,
@@ -27,12 +26,11 @@ interface NavItem {
   badge?: string;
 }
 
-// STUDENT nav: exactly 9 items — no Landing, no Institution Admin
+// STUDENT nav: no Landing, no Institution Admin
 const STUDENT_NAV: NavItem[] = [
   { label: 'Dashboard',            path: '/dashboard',         icon: LayoutDashboard },
   { label: 'Identity Twin',        path: '/identity-twin',     icon: Sparkles,    badge: '88%' },
   { label: 'Learning Curation',    path: '/learning',          icon: BookOpen },
-  { label: 'Knowledge Base',       path: '/knowledge-base',    icon: HardDrive,   badge: 'FAISS' },
   { label: 'Growth Opportunities', path: '/opportunities',     icon: Compass,     badge: 'AI Match' },
   { label: 'Daily Planner',        path: '/planner',           icon: Calendar },
   { label: 'Reflection',           path: '/reflection',        icon: PenTool },

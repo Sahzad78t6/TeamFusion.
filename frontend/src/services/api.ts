@@ -489,39 +489,6 @@ export const getAssessmentsApi = (token: string) => institutionRequest(token, '/
 export const submitAssessmentApi = (token: string, assessmentId: string, answers: Record<string, number>) => institutionRequest(token, `/assessments/${assessmentId}/submissions`, 'POST', { answers });
 export const createContestApi = (token: string, payload: { question_count: number; start_time: string; end_time: string; duration_minutes?: number }) => institutionRequest(token, '/contests', 'POST', payload);
 
-// Knowledge Base Admin APIs
-export async function getKnowledgeBaseStatusApi(token: string): Promise<any> {
-  const response = await safeFetch(`${API_BASE_URL}/knowledge-base/status`, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  });
-  return await safeParseResponse(response, 'Failed to fetch Knowledge Base status.');
-}
-
-export async function syncKnowledgeBaseApi(token: string, forceReindex = false): Promise<any> {
-  const response = await safeFetch(`${API_BASE_URL}/knowledge-base/sync?force_reindex=${forceReindex}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  });
-  return await safeParseResponse(response, 'Knowledge Base sync failed.');
-}
-
-export async function rebuildKBIndexApi(token: string): Promise<any> {
-  const response = await safeFetch(`${API_BASE_URL}/knowledge-base/rebuild-index`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  });
-  return await safeParseResponse(response, 'Failed to rebuild search index.');
-}
-
-export async function getFailedFilesApi(token: string): Promise<any> {
-  const response = await safeFetch(`${API_BASE_URL}/knowledge-base/failed-files`, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  });
-  return await safeParseResponse(response, 'Failed to fetch failed document list.');
-}
-
 // Coding Contest APIs
 export interface CodingContestQuestion {
   id: string;
