@@ -4,7 +4,10 @@ import { BookOpen, Bookmark, Heart, Star, Search, ExternalLink, Loader2, Sparkle
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
-import { getRecommendationsApi, refreshRecommendationsApi } from '../../services/api';
+import { getRecommendationsApi, refreshRecommendationsApi, getLearningVideosApi } from '../../services/api';
+import { VideoResult } from '../../types';
+import { VideoPlayerModal } from '../../components/VideoPlayerModal';
+import { Play, Youtube, AlertTriangle } from 'lucide-react';
 
 export const Learning: React.FC = () => {
   const { learningResources, setLearningResources, toggleBookmarkResource, toggleLikeResource, authToken, identityTwin } = useApp();
@@ -24,6 +27,12 @@ export const Learning: React.FC = () => {
   const [dimension, setDimension] = useState<string>('');
   const [phase, setPhase] = useState<string>('');
   const [planLabel, setPlanLabel] = useState<string>('');
+
+  // Live YouTube Videos State
+  const [liveVideos, setLiveVideos] = useState<VideoResult[]>([]);
+  const [isLoadingVideos, setIsLoadingVideos] = useState<boolean>(false);
+  const [videosError, setVideosError] = useState<string | null>(null);
+  const [activeVideoModal, setActiveVideoModal] = useState<{ videoId: string; title: string } | null>(null);
 
   const formatTimeAgo = (isoString?: string) => {
     if (!isoString) return 'Just now';
@@ -91,6 +100,31 @@ export const Learning: React.FC = () => {
         });
     }
   }, [authToken, setLearningResources]);
+
+  // Fetch live YouTube videos when topic/dimension changes or on mount
+  useEffect(() => {
+    if (authToken) {
+      setIsLoadingVideos(true);
+      setVideosError(null);
+      const activeTopicCode = dimension || primaryGap || 'dsa';
+      getLearningVideosApi(authToken, activeTopicCode)
+        .then((res) => {
+          if (res && Array.isArray(res.videos)) {
+            setLiveVideos(res.videos);
+          } else {
+            setLiveVideos([]);
+          }
+        })
+        .catch((err) => {
+          console.warn('Live YouTube search failed/degraded:', err);
+          setLiveVideos([]);
+          setVideosError("Couldn't load live video recommendations at this time.");
+        })
+        .finally(() => {
+          setIsLoadingVideos(false);
+        });
+    }
+  }, [authToken, dimension, primaryGap]);
 
   const handleTriggerCuratorAgent = async () => {
     if (!authToken || isLoading) return;
@@ -294,6 +328,88 @@ export const Learning: React.FC = () => {
         </div>
       )}
 
+      {/* Watch Now — Live YouTube Video Tutorials Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-500">
+              <Youtube className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                Watch Now — Live Video Tutorials
+                {liveVideos.length > 0 && (
+                  <Badge variant="cyan">{liveVideos.length} Live Results</Badge>
+                )}
+              </h2>
+              <p className="text-[11px] text-slate-400">
+                Scraped live using yt-dlp & playable inline with zero YouTube API key overhead.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {isLoadingVideos ? (
+          <div className="flex items-center justify-center p-8 glass-panel rounded-2xl border border-white/10 text-slate-400 text-xs gap-3">
+            <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+            <span>Fetching live YouTube tutorials for {dimension || primaryGap || 'topic'}...</span>
+          </div>
+        ) : videosError ? (
+          <div className="flex items-center gap-2 p-4 glass-panel rounded-2xl border border-amber-500/20 bg-amber-500/5 text-amber-300 text-xs">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>{videosError} Static curriculum resources are ready below.</span>
+          </div>
+        ) : liveVideos.length === 0 ? (
+          <div className="p-4 glass-panel rounded-2xl border border-white/10 text-slate-400 text-xs text-center">
+            No live videos returned for this topic right now. Explore static curated resources below.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {liveVideos.map((v) => (
+              <motion.div
+                key={v.video_id}
+                whileHover={{ y: -3 }}
+                onClick={() => setActiveVideoModal({ videoId: v.video_id, title: v.title })}
+                className="group glass-panel rounded-2xl border border-white/10 overflow-hidden flex flex-col justify-between hover:border-red-500/40 transition-all duration-300 cursor-pointer bg-[#0c0e17]/80"
+              >
+                {/* Video Thumbnail */}
+                <div className="relative aspect-video w-full overflow-hidden bg-black/40">
+                  <img
+                    src={v.thumbnail}
+                    alt={v.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${v.video_id}/hqdefault.jpg`;
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform border border-white/20">
+                      <Play className="w-5 h-5 fill-white ml-0.5" />
+                    </div>
+                  </div>
+                  <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 text-[10px] font-mono font-bold rounded-md bg-black/80 text-white border border-white/10 backdrop-blur-md">
+                    {v.duration_formatted}
+                  </span>
+                </div>
+
+                {/* Video Details */}
+                <div className="p-4 space-y-1.5 flex-1 flex flex-col justify-between">
+                  <h3 className="text-xs font-bold text-white group-hover:text-red-400 transition-colors line-clamp-2 leading-snug">
+                    {v.title}
+                  </h3>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                    <span className="truncate">{v.channel}</span>
+                    <span className="text-[10px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full shrink-0">
+                      Play Inline
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Category Pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
         {types.map((t) => (
@@ -432,6 +548,15 @@ export const Learning: React.FC = () => {
             </motion.div>
           ))}
         </div>
+      )}
+
+      {/* Video Player Modal */}
+      {activeVideoModal && (
+        <VideoPlayerModal
+          videoId={activeVideoModal.videoId}
+          title={activeVideoModal.title}
+          onClose={() => setActiveVideoModal(null)}
+        />
       )}
     </div>
   );

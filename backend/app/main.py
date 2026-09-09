@@ -13,6 +13,7 @@ from app.routers.planner import router as planner_router
 from app.routers.institutions import router as institutions_router
 from app.routers.contests import router as contests_router
 from app.routers.curriculum import router as curriculum_router
+from app.routers.learning import router as learning_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("growthos.main")
@@ -62,6 +63,7 @@ app.include_router(dashboard_router)
 app.include_router(planner_router)
 app.include_router(institutions_router, prefix="/institutions")
 app.include_router(contests_router)
+app.include_router(learning_router)
 
 
 @app.get("/health")

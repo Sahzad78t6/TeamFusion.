@@ -554,3 +554,16 @@ export async function getCurriculumTopicsApi(goal: string, year: string): Promis
   return await safeParseResponse<CurriculumTopicItem[]>(response, 'Failed to fetch curriculum topics.');
 }
 
+export async function getLearningVideosApi(token: string, topicCode: string, query?: string): Promise<{ videos: any[] }> {
+  let url = `${API_BASE_URL}/learning/videos?topic_code=${encodeURIComponent(topicCode)}`;
+  if (query) {
+    url += `&query=${encodeURIComponent(query)}`;
+  }
+  const response = await safeFetch(url, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<{ videos: any[] }>(response, 'Failed to fetch learning videos.');
+}
+
+

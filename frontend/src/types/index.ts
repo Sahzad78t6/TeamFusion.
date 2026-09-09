@@ -156,3 +156,13 @@ export interface AnalyticsSummary {
   monthlyProgress: { month: string; score: number; burnout: number }[];
   radarSkills: { subject: string; current: number; target: number; fullMark: number }[];
 }
+
+export interface VideoResult {
+  video_id: string;
+  title: string;
+  channel: string;
+  thumbnail: string;
+  duration_formatted: string;
+  url: string;
+}
+
