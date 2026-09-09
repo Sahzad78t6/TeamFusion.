@@ -24,7 +24,6 @@ export interface UserProfile {
   achievements: Achievement[];
   certificates: Certificate[];
   role?: 'STUDENT' | 'INSTITUTION_ADMIN' | 'PLATFORM_ADMIN';
-  cohort_id?: string;
   institution_id?: string;
   year?: string;
 }

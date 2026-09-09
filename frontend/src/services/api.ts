@@ -484,13 +484,10 @@ async function institutionRequest(token: string, path: string, method = 'GET', b
 }
 
 export const getInstitutionAnalyticsApi = (token: string) => institutionRequest(token, '/analytics');
-export const getCohortsApi = (token: string) => institutionRequest(token, '/cohorts');
-export const createCohortApi = (token: string, payload: { name: string; year: string; branch: string; section?: string }) => institutionRequest(token, '/cohorts', 'POST', payload);
 export const createAssessmentApi = (token: string, payload: unknown) => institutionRequest(token, '/assessments', 'POST', payload);
 export const getAssessmentsApi = (token: string) => institutionRequest(token, '/assessments');
 export const submitAssessmentApi = (token: string, assessmentId: string, answers: Record<string, number>) => institutionRequest(token, `/assessments/${assessmentId}/submissions`, 'POST', { answers });
-export const joinCohortApi = (token: string, payload: { cohort_id?: string; code?: string }) => institutionRequest(token, '/cohorts/join', 'POST', payload);
-export const createContestApi = (token: string, payload: { cohort_id: string; question_count: number; start_time: string; end_time: string; duration_minutes?: number }) => institutionRequest(token, '/contests', 'POST', payload);
+export const createContestApi = (token: string, payload: { question_count: number; start_time: string; end_time: string; duration_minutes?: number }) => institutionRequest(token, '/contests', 'POST', payload);
 
 // Knowledge Base Admin APIs
 export async function getKnowledgeBaseStatusApi(token: string): Promise<any> {
@@ -537,7 +534,7 @@ export interface CodingContestQuestion {
 
 export interface ActiveContestResponse {
   id: string;
-  cohort_id: string;
+  institution_id?: string;
   start_time: string;
   end_time: string;
   question_ids: string[];

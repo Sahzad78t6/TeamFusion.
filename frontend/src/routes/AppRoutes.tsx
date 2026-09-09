@@ -75,7 +75,6 @@ export const AppRoutes: React.FC = () => {
           {/* Admin-only routes — students get redirected to /dashboard */}
           <Route element={<AdminOnlyRoute />}>
             <Route path="/institution/overview" element={<InstitutionAdmin />} />
-            <Route path="/institution/cohorts" element={<InstitutionAdmin />} />
             <Route path="/institution/schedule-assessment" element={<ScheduleAssessment />} />
             <Route path="/institution/schedule-contest" element={<ScheduleContest />} />
             <Route path="/institution/results" element={<ResultsLeaderboard />} />

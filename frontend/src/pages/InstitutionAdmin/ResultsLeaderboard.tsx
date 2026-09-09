@@ -19,7 +19,6 @@ interface LeaderboardItem {
 
 interface ResultsResponse {
   title: string;
-  cohort_name: string;
   total_assigned: number;
   total_attempted: number;
   leaderboard: LeaderboardItem[];
@@ -28,14 +27,13 @@ interface ResultsResponse {
 export const ResultsLeaderboard: React.FC = () => {
   const { authToken } = useApp();
   const [type, setType] = useState<'assessment' | 'contest'>('assessment');
-  const [items, setItems] = useState<{ id: string; title?: string; cohort_name?: string }[]>([]);
+  const [items, setItems] = useState<{ id: string; title?: string; question_count?: number }[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
   const [isLoadingItems, setIsLoadingItems] = useState<boolean>(true);
 
   const [results, setResults] = useState<ResultsResponse | null>(null);
   const [isLoadingResults, setIsLoadingResults] = useState<boolean>(false);
 
-  // Fetch list of assessments or contests created by admin's institution
   useEffect(() => {
     if (!authToken) return;
     setIsLoadingItems(true);
@@ -55,7 +53,7 @@ export const ResultsLeaderboard: React.FC = () => {
       getAdminContestsApi(authToken)
         .then((data) => {
           const list = Array.isArray(data) ? data : [];
-          setItems(list.map((c) => ({ id: c.id, title: `Contest (${c.cohort_name || 'Cohort'}) - ${c.question_count} Qs` })));
+          setItems(list.map((c) => ({ id: c.id, title: `Coding Contest (${c.question_count || 2} Problems)` })));
           if (list.length > 0) setSelectedId(list[0].id);
         })
         .catch((err) => console.warn('Failed to load admin contests:', err))
@@ -63,7 +61,6 @@ export const ResultsLeaderboard: React.FC = () => {
     }
   }, [authToken, type]);
 
-  // Fetch results whenever selectedId changes
   useEffect(() => {
     if (!authToken || !selectedId) {
       setResults(null);
@@ -151,7 +148,7 @@ export const ResultsLeaderboard: React.FC = () => {
             >
               {items.map((item) => (
                 <option key={item.id} value={item.id} className="bg-[#12141d]">
-                  {item.title || 'Untitled'} ({item.cohort_name || 'Cohort'})
+                  {item.title || 'Untitled Assessment'}
                 </option>
               ))}
             </select>
@@ -181,7 +178,6 @@ export const ResultsLeaderboard: React.FC = () => {
               <div>
                 <span className="text-[11px] font-bold text-slate-400 uppercase">Evaluation</span>
                 <p className="text-sm font-extrabold text-white truncate max-w-[160px]">{results.title}</p>
-                <p className="text-[10px] text-purple-300">{results.cohort_name}</p>
               </div>
             </div>
 

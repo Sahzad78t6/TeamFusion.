@@ -45,7 +45,6 @@ async def signup(payload: SignupRequest):
         "password_hash": hashed_pwd,
         "role": role,
         "institution_id": inst_id,
-        "cohort_id": payload.cohort_id,
         "onboarding_completed": False,
         "goal": None,
         "year": None,

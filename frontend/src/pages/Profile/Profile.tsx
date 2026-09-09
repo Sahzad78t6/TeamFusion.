@@ -6,7 +6,6 @@ import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
-import { joinCohortApi } from '../../services/api';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -24,29 +23,10 @@ import {
 } from 'recharts';
 
 export const Profile: React.FC = () => {
-  const { user, analytics, logout, authToken, refreshDashboard } = useApp();
+  const { user, analytics, logout } = useApp();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'analytics' | 'settings'>('profile');
-  const [cohortInput, setCohortInput] = useState('');
-  const [cohortMsg, setCohortMsg] = useState('');
-  const [isJoining, setIsJoining] = useState(false);
-
-  const handleJoinCohort = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!cohortInput.trim() || !authToken) return;
-    setIsJoining(true);
-    try {
-      const res = await joinCohortApi(authToken, { code: cohortInput.trim() });
-      setCohortMsg(res.message || 'Joined cohort successfully!');
-      setCohortInput('');
-      if (refreshDashboard) await refreshDashboard();
-    } catch (err: any) {
-      setCohortMsg(err.message || 'Failed to join cohort.');
-    } finally {
-      setIsJoining(false);
-    }
-  };
 
   const handleSignOut = async () => {
     await logout();
@@ -121,35 +101,26 @@ export const Profile: React.FC = () => {
       {/* Tab 1: Profile & Badges */}
       {activeTab === 'profile' && (
         <div className="space-y-8">
-          {/* Cohort & Academic Group */}
+          {/* Institution & Academic Year */}
           <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <Users className="w-5 h-5 text-indigo-400" />
-                Academic Cohort & Institution
+                Institution & Academic Year
               </h3>
               <Badge variant="cyan">{user.year || '1st Year'}</Badge>
             </div>
-            <p className="text-xs text-slate-300">
-              Assigned Cohort ID:{' '}
-              <span className="text-indigo-300 font-mono font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                {user.cohort_id || 'Auto-enrolled / Year Default'}
-              </span>
-            </p>
-
-            <form onSubmit={handleJoinCohort} className="flex gap-2 max-w-md">
-              <input
-                type="text"
-                placeholder="Enter Cohort Name or ID to join..."
-                value={cohortInput}
-                onChange={(e) => setCohortInput(e.target.value)}
-                className="flex-1 p-2.5 rounded-xl bg-white/5 text-white border border-white/10 text-xs focus:outline-none focus:border-indigo-400"
-              />
-              <Button type="submit" size="sm" variant="glow" disabled={isJoining}>
-                {isJoining ? 'Joining...' : 'Join Cohort'}
-              </Button>
-            </form>
-            {cohortMsg && <p className="text-xs text-indigo-300 bg-indigo-500/10 p-2 rounded-lg border border-indigo-500/20">{cohortMsg}</p>}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-xs text-slate-300 pt-2">
+              <div>
+                <span className="text-slate-400">Institution: </span>
+                <span className="text-white font-semibold">{user.title || user.location || 'Registered Institution'}</span>
+              </div>
+              <div className="hidden sm:block text-slate-600">•</div>
+              <div>
+                <span className="text-slate-400">Academic Year: </span>
+                <span className="text-indigo-300 font-semibold">{user.year || '1st Year'}</span>
+              </div>
+            </div>
           </div>
 
           {/* Achievements Grid */}

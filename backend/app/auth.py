@@ -70,7 +70,6 @@ def to_user_response(user_doc: dict) -> UserResponse:
         created_at=created_at_str,
         role=user_doc.get("role", "STUDENT"),
         institution_id=user_doc.get("institution_id"),
-        cohort_id=user_doc.get("cohort_id"),
         onboarding_completed=bool(user_doc.get("onboarding_completed", False))
     )
 

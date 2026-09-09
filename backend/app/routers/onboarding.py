@@ -35,28 +35,6 @@ async def submit_onboarding(
         "onboarding_completed": True,
     }
 
-    # Auto-assign cohort_id matching institution and year
-    matching_cohort = None
-    if inst_id:
-        matching_cohort = await db["cohorts"].find_one({
-            "institution_id": inst_id,
-            "year": payload.current_role or "1st Year"
-        })
-        if not matching_cohort:
-            matching_cohort = await db["cohorts"].find_one({"institution_id": inst_id})
-
-    if not matching_cohort and college_val:
-        matching_cohort = await db["cohorts"].find_one({"name": college_val})
-    if not matching_cohort and payload.current_role:
-        matching_cohort = await db["cohorts"].find_one({"year": payload.current_role})
-    if not matching_cohort:
-        matching_cohort = await db["cohorts"].find_one({})
-
-    if matching_cohort:
-        update_fields["cohort_id"] = str(matching_cohort["_id"])
-        if matching_cohort.get("institution_id"):
-            update_fields["institution_id"] = matching_cohort.get("institution_id")
-
     await db["users"].update_one(
         {"_id": user_id},
         {"$set": update_fields}

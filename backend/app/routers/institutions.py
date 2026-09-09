@@ -8,11 +8,8 @@ from app.db import get_db
 from app.models import (
     AssessmentCreateRequest,
     AssessmentSubmissionRequest,
-    CohortCreateRequest,
-    CohortResponse,
     InstitutionAnalyticsResponse,
     InstitutionOptionResponse,
-    JoinCohortRequest,
 )
 
 router = APIRouter(tags=["institutions"])
@@ -58,79 +55,34 @@ async def get_analytics(
     db = get_db()
     inst_id = await ensure_institution_id(db, current_user)
 
-    cohorts = await db["cohorts"].find({"institution_id": inst_id}, {"_id": 1}).to_list(1000)
-    cohort_ids = [str(c["_id"]) for c in cohorts]
-    cohort_count = len(cohorts)
-
     total_students = await db["users"].count_documents({
-        "$or": [
-            {"institution_id": inst_id, "role": "STUDENT"},
-            {"cohort_id": {"$in": cohort_ids}},
-        ]
+        "institution_id": inst_id,
+        "role": "STUDENT"
+    })
+
+    assessment_count = await db["assessments"].count_documents({
+        "institution_id": inst_id
+    })
+
+    contest_count = await db["contest_sessions"].count_documents({
+        "institution_id": inst_id
     })
 
     assessment_docs = await db["assessments"].find(
-        {"cohort_id": {"$in": cohort_ids}},
+        {"institution_id": inst_id},
         {"_id": 1}
     ).to_list(2000)
     assessment_ids = [str(a["_id"]) for a in assessment_docs]
 
-    assessment_submissions = await db["submissions"].count_documents({
+    total_submissions = await db["submissions"].count_documents({
         "assessment_id": {"$in": assessment_ids}
     })
 
     return InstitutionAnalyticsResponse(
         total_students=total_students,
-        cohort_count=cohort_count,
-        assessment_submissions=assessment_submissions,
-    )
-
-@router.get("/cohorts", response_model=List[CohortResponse])
-async def get_cohorts(
-    current_user: dict = Depends(require_admin),
-):
-    db = get_db()
-    inst_id = await ensure_institution_id(db, current_user)
-
-    cohorts = await db["cohorts"].find({"institution_id": inst_id}).to_list(500)
-    return [
-        CohortResponse(
-            id=str(c["_id"]),
-            institution_id=c.get("institution_id", inst_id),
-            name=c.get("name", ""),
-            year=c.get("year", ""),
-            branch=c.get("branch", ""),
-            section=c.get("section", ""),
-        )
-        for c in cohorts
-    ]
-
-@router.post("/cohorts", response_model=CohortResponse, status_code=status.HTTP_200_OK)
-async def create_cohort(
-    payload: CohortCreateRequest,
-    current_user: dict = Depends(require_admin),
-):
-    db = get_db()
-    inst_id = await ensure_institution_id(db, current_user)
-
-    doc = {
-        "institution_id": inst_id,
-        "name": payload.name.strip(),
-        "year": payload.year.strip(),
-        "branch": payload.branch.strip(),
-        "section": (payload.section or "").strip(),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-
-    result = await db["cohorts"].insert_one(doc)
-
-    return CohortResponse(
-        id=str(result.inserted_id),
-        institution_id=inst_id,
-        name=doc["name"],
-        year=doc["year"],
-        branch=doc["branch"],
-        section=doc["section"],
+        assessment_count=assessment_count,
+        contest_count=contest_count,
+        total_submissions=total_submissions,
     )
 
 @router.get("/admin/assessments")
@@ -140,67 +92,17 @@ async def get_admin_assessments(
     db = get_db()
     inst_id = await ensure_institution_id(db, current_user)
 
-    cohorts = await db["cohorts"].find({"institution_id": inst_id}).to_list(1000)
-    cohort_map = {str(c["_id"]): c.get("name", "") for c in cohorts}
-    cohort_ids = list(cohort_map.keys())
-
-    assessments = await db["assessments"].find({"cohort_id": {"$in": cohort_ids}}).sort("created_at", -1).to_list(500)
+    assessments = await db["assessments"].find({"institution_id": inst_id}).sort("created_at", -1).to_list(500)
     return [
         {
             "id": str(a["_id"]),
             "title": a.get("title", ""),
-            "cohort_id": a.get("cohort_id", ""),
-            "cohort_name": cohort_map.get(a.get("cohort_id", ""), "Cohort"),
             "start_time": a.get("start_time", ""),
             "end_time": a.get("end_time", ""),
             "created_at": a.get("created_at", "")
         }
         for a in assessments
     ]
-
-@router.post("/cohorts/join")
-async def join_cohort(
-    payload: JoinCohortRequest,
-    current_user: dict = Depends(get_current_user),
-):
-    db = get_db()
-    cohort_id_str = payload.cohort_id or payload.code
-    if not cohort_id_str:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cohort ID or code is required",
-        )
-
-    cohort = None
-    try:
-        cohort = await db["cohorts"].find_one({"_id": ObjectId(cohort_id_str)})
-    except Exception:
-        pass
-
-    if not cohort:
-        cohort = await db["cohorts"].find_one({"name": cohort_id_str})
-
-    if not cohort:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Cohort not found",
-        )
-
-    await db["users"].update_one(
-        {"_id": current_user["_id"]},
-        {
-            "$set": {
-                "cohort_id": str(cohort["_id"]),
-                "institution_id": cohort.get("institution_id"),
-            }
-        }
-    )
-
-    return {
-        "cohort_id": str(cohort["_id"]),
-        "name": cohort["name"],
-        "message": f"Successfully joined cohort {cohort['name']}",
-    }
 
 @router.post("/assessments")
 async def create_assessment(
@@ -209,18 +111,6 @@ async def create_assessment(
 ):
     db = get_db()
     inst_id = await ensure_institution_id(db, current_user)
-
-    # Scoping check: verify cohort belongs to admin's institution
-    cohort_doc = None
-    try:
-        cohort_doc = await db["cohorts"].find_one({"_id": ObjectId(payload.cohort_id)})
-    except Exception:
-        pass
-    if not cohort_doc or cohort_doc.get("institution_id") != inst_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cohort not found or not owned by your institution",
-        )
 
     question_ids = []
 
@@ -270,7 +160,6 @@ async def create_assessment(
     assessment_doc = {
         "title": payload.title,
         "description": payload.description or "",
-        "cohort_id": payload.cohort_id,
         "institution_id": inst_id,
         "skill": payload.skill,
         "year": payload.year,
@@ -288,7 +177,6 @@ async def create_assessment(
         "id": str(res.inserted_id),
         "title": assessment_doc["title"],
         "description": assessment_doc["description"],
-        "cohort_id": assessment_doc["cohort_id"],
         "institution_id": inst_id,
         "skill": assessment_doc["skill"],
         "question_ids": [str(qid) for qid in question_ids],
@@ -303,49 +191,14 @@ async def get_assessments(
     current_user: dict = Depends(get_current_user),
 ):
     db = get_db()
-    cohort_id = current_user.get("cohort_id")
-
-    # If student has no cohort yet, try to auto-match first cohort of matching year
-    if not cohort_id:
-        user_year = current_user.get("year") or "1st Year"
-        user_inst = current_user.get("institution_id")
-        query = {"year": user_year}
-        if user_inst:
-            query["institution_id"] = user_inst
-        matching_cohort = await db["cohorts"].find_one(query)
-        if matching_cohort:
-            cohort_id = str(matching_cohort["_id"])
-            await db["users"].update_one(
-                {"_id": current_user["_id"]},
-                {
-                    "$set": {
-                        "cohort_id": cohort_id,
-                        "institution_id": matching_cohort.get("institution_id"),
-                    }
-                }
-            )
-
-    if not cohort_id:
-        return []
-
-    # Scoping check: verify student's cohort belongs to student's institution
-    cohort = None
-    try:
-        cohort = await db["cohorts"].find_one({"_id": ObjectId(cohort_id)})
-    except Exception:
-        pass
-
-    if not cohort:
-        return []
-
     user_inst = current_user.get("institution_id")
-    if user_inst and cohort.get("institution_id") and user_inst != cohort.get("institution_id"):
+    if not user_inst:
         return []
 
     now_dt = datetime.now(timezone.utc)
 
-    # Fetch assessments assigned to this cohort
-    assessments_cursor = db["assessments"].find({"cohort_id": cohort_id})
+    # Fetch assessments assigned to this institution
+    assessments_cursor = db["assessments"].find({"institution_id": user_inst})
     assessments_list = await assessments_cursor.to_list(100)
 
     result = []
@@ -363,7 +216,7 @@ async def get_assessments(
         q_ids = a.get("question_ids", [])
         raw_questions = await db["quiz_bank"].find({"_id": {"$in": q_ids}}).to_list(len(q_ids))
 
-        # IMPORTANT: Never include correct_option in this response
+        # Never include correct_option in student response
         resolved_questions = []
         for q in raw_questions:
             resolved_questions.append({
@@ -399,6 +252,10 @@ async def start_assessment_attempt(
     assessment = await db["assessments"].find_one({"_id": a_obj_id})
     if not assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
+
+    user_inst = current_user.get("institution_id")
+    if user_inst and assessment.get("institution_id") and user_inst != assessment.get("institution_id"):
+        raise HTTPException(status_code=403, detail="Forbidden: Assessment does not belong to your institution")
 
     now_iso = datetime.now(timezone.utc).isoformat()
     existing = await db["assessment_attempts"].find_one({"assessment_id": id, "user_id": user_id_str})
@@ -440,10 +297,8 @@ async def submit_assessment(
             detail="Assessment not found",
         )
 
-    # Scoping check: student's institution must match assessment's cohort institution
-    cohort = await db["cohorts"].find_one({"_id": ObjectId(assessment["cohort_id"])})
     user_inst = current_user.get("institution_id")
-    if cohort and user_inst and cohort.get("institution_id") and user_inst != cohort.get("institution_id"):
+    if user_inst and assessment.get("institution_id") and user_inst != assessment.get("institution_id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden: Assessment does not belong to your institution",
@@ -518,13 +373,11 @@ async def get_assessment_results(
     if not assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
 
-    cohort_id_str = assessment.get("cohort_id")
-    cohort = await db["cohorts"].find_one({"_id": ObjectId(cohort_id_str)})
-    if not cohort or cohort.get("institution_id") != inst_id:
+    if assessment.get("institution_id") != inst_id:
         raise HTTPException(status_code=403, detail="Forbidden: Assessment does not belong to your institution")
 
     total_assigned = await db["users"].count_documents({
-        "cohort_id": cohort_id_str,
+        "institution_id": inst_id,
         "role": "STUDENT"
     })
 
@@ -564,9 +417,7 @@ async def get_assessment_results(
 
     return {
         "title": assessment.get("title", ""),
-        "cohort_name": cohort.get("name", ""),
         "total_assigned": total_assigned,
         "total_attempted": len(results_list),
         "leaderboard": results_list
     }
-

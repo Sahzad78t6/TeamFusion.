@@ -40,10 +40,9 @@ const STUDENT_NAV: NavItem[] = [
   { label: 'Coding Contest',       path: '/contest',           icon: Code2,       badge: 'Live' },
 ];
 
-// ADMIN nav: 6 dedicated items — no student pages
+// ADMIN nav: 5 dedicated items — no student pages
 const ADMIN_NAV: NavItem[] = [
   { label: 'Overview / Analytics', path: '/institution/overview',            icon: BarChart3 },
-  { label: 'Cohorts',              path: '/institution/cohorts',             icon: Users },
   { label: 'Schedule Assessment',  path: '/institution/schedule-assessment', icon: ClipboardList },
   { label: 'Schedule Contest',     path: '/institution/schedule-contest',    icon: Code2 },
   { label: 'Results & Leaderboard',path: '/institution/results',             icon: Trophy },

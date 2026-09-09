@@ -1,17 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ClipboardList, Calendar, Clock, Check, AlertCircle, Plus, Trash2, Loader2, Sparkles, Layers } from 'lucide-react';
+import { ClipboardList, Calendar, Clock, Check, AlertCircle, Plus, Trash2, Sparkles, Layers } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { useApp } from '../../context/AppContext';
-import { getCohortsApi, createAssessmentApi } from '../../services/api';
-
-interface CohortItem {
-  id: string;
-  name: string;
-  year: string;
-  branch: string;
-  section?: string;
-}
+import { createAssessmentApi } from '../../services/api';
 
 interface ManualQuestion {
   prompt: string;
@@ -23,15 +15,12 @@ const YEAR_OPTIONS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 
 export const ScheduleAssessment: React.FC = () => {
   const { authToken } = useApp();
-  const [cohorts, setCohorts] = useState<CohortItem[]>([]);
-  const [isLoadingCohorts, setIsLoadingCohorts] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedCohortId, setSelectedCohortId] = useState('');
   const [skill, setSkill] = useState('');
 
   // Mode state: 'B' (bank sample) vs 'A' (manual)
@@ -55,23 +44,7 @@ export const ScheduleAssessment: React.FC = () => {
   const [endTime, setEndTime] = useState(getOneHourLaterISO());
   const [durationMinutes, setDurationMinutes] = useState(30);
 
-  useEffect(() => {
-    if (authToken) {
-      setIsLoadingCohorts(true);
-      getCohortsApi(authToken)
-        .then((data) => {
-          const list = Array.isArray(data) ? data : [];
-          setCohorts(list);
-          if (list.length > 0) {
-            setSelectedCohortId(list[0].id);
-          }
-        })
-        .catch((err) => {
-          console.warn('Failed to load cohorts:', err);
-        })
-        .finally(() => setIsLoadingCohorts(false));
-    }
-  }, [authToken]);
+
 
   const handleAddQuestion = () => {
     setManualQuestions([...manualQuestions, { prompt: '', options: ['', '', '', ''], correct_option: 0 }]);
@@ -102,10 +75,6 @@ export const ScheduleAssessment: React.FC = () => {
       setFeedback({ type: 'error', message: 'Assessment title is required.' });
       return;
     }
-    if (!selectedCohortId) {
-      setFeedback({ type: 'error', message: 'Please select a target cohort.' });
-      return;
-    }
     if (new Date(endTime) <= new Date(startTime)) {
       setFeedback({ type: 'error', message: 'End time must be after start time.' });
       return;
@@ -117,7 +86,6 @@ export const ScheduleAssessment: React.FC = () => {
       const payload: any = {
         title: title.trim(),
         description: description.trim(),
-        cohort_id: selectedCohortId,
         skill: skill.trim() || topicCode || 'General',
         start_time: new Date(startTime).toISOString(),
         end_time: new Date(endTime).toISOString(),
@@ -158,7 +126,7 @@ export const ScheduleAssessment: React.FC = () => {
         </div>
         <h1 className="text-3xl font-extrabold text-white tracking-tight">Schedule Assessment</h1>
         <p className="text-slate-400 text-sm">
-          Define time-bounded skill evaluations for cohorts with random bank sampling or custom questions.
+          Define time-bounded skill evaluations for your institution with random bank sampling or custom questions.
         </p>
       </div>
 
@@ -185,7 +153,7 @@ export const ScheduleAssessment: React.FC = () => {
             Basic Details
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-300">Assessment Title *</label>
               <input
@@ -197,29 +165,6 @@ export const ScheduleAssessment: React.FC = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300">Target Cohort *</label>
-              {isLoadingCohorts ? (
-                <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-sm flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-purple-400" /> Loading cohorts...
-                </div>
-              ) : (
-                <select
-                  value={selectedCohortId}
-                  onChange={(e) => setSelectedCohortId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#181b28] border border-white/15 text-white text-sm focus:outline-none focus:border-purple-500 cursor-pointer"
-                >
-                  {cohorts.map((c) => (
-                    <option key={c.id} value={c.id} className="bg-[#12141d]">
-                      {c.name} ({c.year} - {c.branch})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-300">Skill / Domain Tag</label>
               <input

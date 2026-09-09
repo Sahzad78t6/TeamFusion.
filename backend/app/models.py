@@ -11,7 +11,6 @@ class UserResponse(BaseModel):
     created_at: str
     role: UserRole = "STUDENT"
     institution_id: Optional[str] = None
-    cohort_id: Optional[str] = None
     onboarding_completed: bool = False
 
 class AuthResponse(BaseModel):
@@ -27,7 +26,6 @@ class SignupRequest(BaseModel):
     role: Optional[UserRole] = "STUDENT"
     institution_id: Optional[str] = None
     institution_name: Optional[str] = None
-    cohort_id: Optional[str] = None
 
 class InstitutionOptionResponse(BaseModel):
     id: str
@@ -63,25 +61,12 @@ class TaskUpdateRequest(BaseModel):
 class RefreshRequest(BaseModel):
     topic: Optional[str] = None
 
-# Phase 3: Cohorts & Assessments Models
-class CohortCreateRequest(BaseModel):
-    name: str = Field(..., min_length=1)
-    year: str = Field(..., min_length=1)
-    branch: str = Field(..., min_length=1)
-    section: Optional[str] = ""
-
-class CohortResponse(BaseModel):
-    id: str
-    institution_id: str
-    name: str
-    year: str
-    branch: str
-    section: Optional[str] = ""
-
+# Phase 3: Institution & Assessments Models
 class InstitutionAnalyticsResponse(BaseModel):
     total_students: int
-    cohort_count: int
-    assessment_submissions: int
+    assessment_count: int
+    contest_count: int
+    total_submissions: int
 
 class QuestionManual(BaseModel):
     id: Optional[str] = None
@@ -93,7 +78,6 @@ class QuestionManual(BaseModel):
 class AssessmentCreateRequest(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = ""
-    cohort_id: str = Field(..., min_length=1)
     skill: str = Field(..., min_length=1)
     # Mode A (manual)
     questions: Optional[List[QuestionManual]] = None
@@ -109,13 +93,8 @@ class AssessmentCreateRequest(BaseModel):
 class AssessmentSubmissionRequest(BaseModel):
     answers: Dict[str, int]
 
-class JoinCohortRequest(BaseModel):
-    cohort_id: Optional[str] = None
-    code: Optional[str] = None
-
 # Coding Contest Models
 class ContestCreateRequest(BaseModel):
-    cohort_id: str = Field(..., min_length=1)
     question_count: int = Field(default=2, ge=1)
     start_time: str = Field(..., min_length=1)
     end_time: str = Field(..., min_length=1)
@@ -132,4 +111,5 @@ class TestCaseResult(BaseModel):
 class CodeSubmitResponse(BaseModel):
     passed: Optional[bool]
     results: List[TestCaseResult]
+
 
