@@ -11,12 +11,42 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
-  Globe,
   ClipboardList,
-  Building2,
   HardDrive,
   Code2,
+  BarChart3,
+  Users,
+  Settings,
 } from 'lucide-react';
+
+interface NavItem {
+  label: string;
+  path: string;
+  icon: React.FC<{ className?: string }>;
+  badge?: string;
+}
+
+// STUDENT nav: exactly 9 items — no Landing, no Institution Admin
+const STUDENT_NAV: NavItem[] = [
+  { label: 'Dashboard',            path: '/dashboard',         icon: LayoutDashboard },
+  { label: 'Identity Twin',        path: '/identity-twin',     icon: Sparkles,    badge: '88%' },
+  { label: 'Learning Curation',    path: '/learning',          icon: BookOpen },
+  { label: 'Knowledge Base',       path: '/knowledge-base',    icon: HardDrive,   badge: 'FAISS' },
+  { label: 'Growth Opportunities', path: '/opportunities',     icon: Compass,     badge: 'AI Match' },
+  { label: 'Daily Planner',        path: '/planner',           icon: Calendar },
+  { label: 'Reflection',           path: '/reflection',        icon: PenTool },
+  { label: 'Assessments',          path: '/assessments',       icon: ClipboardList },
+  { label: 'Coding Contest',       path: '/contest',           icon: Code2,       badge: 'Live' },
+];
+
+// ADMIN nav: exactly 5 items — no student pages
+const ADMIN_NAV: NavItem[] = [
+  { label: 'Overview / Analytics', path: '/institution/overview',  icon: BarChart3 },
+  { label: 'Cohorts',              path: '/institution/cohorts',   icon: Users },
+  { label: 'Assessments',          path: '/assessments',           icon: ClipboardList },
+  { label: 'Coding Contests',      path: '/contest',               icon: Code2 },
+  { label: 'Institution Settings', path: '/institution/settings',  icon: Settings },
+];
 import { useApp } from '../../context/AppContext';
 
 export const Sidebar: React.FC = () => {
@@ -24,19 +54,10 @@ export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { user } = useApp();
 
-  const navItems = [
-    { label: 'Landing', path: '/', icon: Globe },
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Identity Twin', path: '/identity-twin', icon: Sparkles, badge: '88%' },
-    { label: 'Learning Curation', path: '/learning', icon: BookOpen },
-    { label: 'Knowledge Base', path: '/knowledge-base', icon: HardDrive, badge: 'FAISS' },
-    { label: 'Growth Opportunities', path: '/opportunities', icon: Compass, badge: 'AI Match' },
-    { label: 'Daily Planner', path: '/planner', icon: Calendar },
-    { label: 'Reflection', path: '/reflection', icon: PenTool },
-    { label: 'Assessments', path: '/assessments', icon: ClipboardList },
-    { label: 'Coding Contest', path: '/contest', icon: Code2, badge: 'Live' },
-    ...(user.role === 'INSTITUTION_ADMIN' || user.role === 'PLATFORM_ADMIN' ? [{ label: 'Institution Admin', path: '/institution-admin', icon: Building2 }] : []),
-  ];
+  const isAdmin = user.role === 'INSTITUTION_ADMIN' || user.role === 'PLATFORM_ADMIN';
+  const navItems = isAdmin ? ADMIN_NAV : STUDENT_NAV;
+  const subtitleText = isAdmin ? 'Institution Admin' : 'AI Growth Engine';
+  const homeLink = isAdmin ? '/institution/overview' : '/dashboard';
 
 
 
@@ -48,7 +69,7 @@ export const Sidebar: React.FC = () => {
     >
       {/* Top Header / Logo */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-white/10">
-        <NavLink to="/dashboard" className="flex items-center gap-3 overflow-hidden">
+        <NavLink to={homeLink} className="flex items-center gap-3 overflow-hidden">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
             <Zap className="w-5 h-5 text-white" />
           </div>
@@ -64,7 +85,7 @@ export const Sidebar: React.FC = () => {
                   Growth<span className="text-gradient">OS</span>
                 </span>
                 <span className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase">
-                  AI Growth Engine
+                  {subtitleText}
                 </span>
               </motion.div>
             )}
@@ -104,10 +125,7 @@ export const Sidebar: React.FC = () => {
                 }`}
               />
 
-              {!isCollapsed && (
-                <span className="truncate flex-1">{item.label}</span>
-              )}
-
+              {!isCollapsed && <span className="truncate flex-1">{item.label}</span>}
               {!isCollapsed && item.badge && (
                 <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                   {item.badge}
@@ -149,7 +167,9 @@ export const Sidebar: React.FC = () => {
               <span className="text-xs font-bold text-white truncate group-hover:text-indigo-300 transition-colors">
                 {user.name}
               </span>
-              <span className="text-[10px] text-slate-400 truncate">Lvl {user.level} • Profile & Settings</span>
+              <span className="text-[10px] text-slate-400 truncate">
+                {isAdmin ? (user.role || '').replace(/_/g, ' ') : `Lvl ${user.level} • Profile & Settings`}
+              </span>
             </div>
           )}
         </NavLink>

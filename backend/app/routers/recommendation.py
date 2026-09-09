@@ -44,6 +44,11 @@ async def get_user_recommendations(current_user: dict, db) -> dict:
 
     topic_code = current_topic["topic_code"]
     topic_label = current_topic["label"]
+    topic_priority = current_topic.get("priority", "P1")
+
+    # Map curriculum priority to a meaningful difficulty label
+    _priority_to_difficulty = {"P0": "Advanced", "P1": "Intermediate", "P2": "Beginner", "P3": "Foundational"}
+    resource_difficulty = _priority_to_difficulty.get(topic_priority, "Intermediate")
 
     res_doc = await db["resources"].find_one({"topic_code": topic_code}) or {}
 
@@ -57,7 +62,7 @@ async def get_user_recommendations(current_user: dict, db) -> dict:
             "author": "GrowthOS AI Curator",
             "platform": "YouTube",
             "duration": "45 Mins",
-            "difficulty": "Beginner",
+            "difficulty": resource_difficulty,
             "category": topic_label,
             "rating": 4.8,
             "tags": [topic_code],
@@ -76,7 +81,7 @@ async def get_user_recommendations(current_user: dict, db) -> dict:
             "author": "Technical Documentation",
             "platform": "Web / Reference",
             "duration": "25 Mins Read",
-            "difficulty": "Beginner",
+            "difficulty": resource_difficulty,
             "category": topic_label,
             "rating": 4.7,
             "tags": [topic_code],
@@ -95,7 +100,7 @@ async def get_user_recommendations(current_user: dict, db) -> dict:
             "author": b.get("author", "Author"),
             "platform": "Open Textbook / Publisher",
             "duration": "Comprehensive",
-            "difficulty": "Beginner",
+            "difficulty": resource_difficulty,
             "category": topic_label,
             "rating": 4.9,
             "tags": [topic_code],
@@ -114,7 +119,7 @@ async def get_user_recommendations(current_user: dict, db) -> dict:
             "author": "Hands-on Practice",
             "platform": "Competitive / Open Source",
             "duration": "Ongoing",
-            "difficulty": "Beginner",
+            "difficulty": resource_difficulty,
             "category": topic_label,
             "rating": 4.6,
             "tags": [topic_code],
@@ -124,6 +129,7 @@ async def get_user_recommendations(current_user: dict, db) -> dict:
             "isLiked": False,
             "progressPercentage": 0,
         })
+
 
     return {
         "resources": flattened,

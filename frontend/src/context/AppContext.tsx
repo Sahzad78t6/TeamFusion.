@@ -349,6 +349,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             email: me.email || prev.email,
             role: me.role || prev.role,
           }));
+
+          // Role-based post-login redirect
+          const currentPath = window.location.pathname;
+          const isAuthPage = currentPath === '/login' || currentPath === '/signup' || currentPath === '/';
+          if (isAuthPage) {
+            if (me.role === 'INSTITUTION_ADMIN' || me.role === 'PLATFORM_ADMIN') {
+              window.location.href = '/institution/overview';
+              return;
+            } else if (!me.onboarding_completed) {
+              window.location.href = '/onboarding';
+              return;
+            } else {
+              window.location.href = '/dashboard';
+              return;
+            }
+          }
+
           refreshDashboard();
         })
         .catch(() => {
@@ -357,6 +374,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
     }
   }, [authToken]);
+
 
   const toggleTask = (taskId: string) => {
     let nextCompleted = false;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Landing } from '../pages/Landing/Landing';
 import { Login } from '../pages/Login/Login';
 import { Signup } from '../pages/Signup/Signup';
@@ -20,7 +20,23 @@ import { InstitutionAdmin } from '../pages/InstitutionAdmin/InstitutionAdmin';
 import { KnowledgeBasePage } from '../pages/KnowledgeBase/KnowledgeBase';
 import { Contest } from '../pages/Contest/Contest';
 import { ProtectedRoute } from './ProtectedRoute';
+import { useApp } from '../context/AppContext';
 
+/** Redirects INSTITUTION_ADMIN / PLATFORM_ADMIN away from student-only pages */
+const StudentOnlyRoute: React.FC = () => {
+  const { user } = useApp();
+  const isAdmin = user.role === 'INSTITUTION_ADMIN' || user.role === 'PLATFORM_ADMIN';
+  if (isAdmin) return <Navigate to="/institution/overview" replace />;
+  return <Outlet />;
+};
+
+/** Redirects STUDENT away from admin-only pages */
+const AdminOnlyRoute: React.FC = () => {
+  const { user } = useApp();
+  // Only block if we have a confirmed role (don't block empty/default state while loading)
+  if (user.id && user.role === 'STUDENT') return <Navigate to="/dashboard" replace />;
+  return <Outlet />;
+};
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -31,29 +47,39 @@ export const AppRoutes: React.FC = () => {
       <Route path="/signup" element={<Signup />} />
       <Route path="/onboarding" element={<Onboarding />} />
 
-      {/* Authenticated Dashboard Layout */}
+      {/* Authenticated Layout */}
       <Route element={<ProtectedRoute />}>
-      <Route element={<AppLayout />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/identity-twin" element={<IdentityTwin />} />
-        <Route path="/learning" element={<Learning />} />
-        <Route path="/opportunities" element={<Opportunity />} />
-        <Route path="/planner" element={<Planner />} />
-        <Route path="/reflection" element={<Reflection />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/analytics" element={<Analytics />} />
-        <Route path="/assessments" element={<Assessments />} />
-        <Route path="/contest" element={<Contest />} />
-        <Route path="/institution-admin" element={<InstitutionAdmin />} />
-        <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+        <Route element={<AppLayout />}>
+
+          {/* Shared routes (both students and admins can access) */}
+          <Route path="/assessments" element={<Assessments />} />
+          <Route path="/contest" element={<Contest />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/analytics" element={<Analytics />} />
+
+          {/* Student-only routes — admins get redirected to /institution/overview */}
+          <Route element={<StudentOnlyRoute />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/identity-twin" element={<IdentityTwin />} />
+            <Route path="/learning" element={<Learning />} />
+            <Route path="/opportunities" element={<Opportunity />} />
+            <Route path="/planner" element={<Planner />} />
+            <Route path="/reflection" element={<Reflection />} />
+            <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+          </Route>
+
+          {/* Admin-only routes — students get redirected to /dashboard */}
+          <Route element={<AdminOnlyRoute />}>
+            <Route path="/institution/overview" element={<InstitutionAdmin />} />
+            <Route path="/institution/cohorts" element={<InstitutionAdmin />} />
+            <Route path="/institution/settings" element={<InstitutionAdmin />} />
+          </Route>
+
+        </Route>
       </Route>
 
-
-      </Route>
-
-
-      {/* Fallback redirect */}
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
