@@ -12,13 +12,13 @@ async def get_user_recommendations(current_user: dict, db) -> dict:
     user_id = str(current_user["_id"])
     progress = await db["user_progress"].find_one({"user_id": user_id})
 
-    goal = (progress.get("goal") if progress else None) or current_user.get("goal") or "ml_engineer"
+    goal = (progress.get("goal") if progress else None) or current_user.get("goal") or "software_engineering"
     year = (progress.get("year") if progress else None) or current_user.get("year") or "1st Year"
 
     curriculum = await db["curriculum"].find_one({"goal": goal, "year": year})
     if not curriculum:
-        # Fallback to default ML Engineer 1st Year track
-        curriculum = await db["curriculum"].find_one({"goal": "ml_engineer", "year": "1st Year"})
+        # Fallback to default Software Engineering 1st Year track
+        curriculum = await db["curriculum"].find_one({"goal": "software_engineering", "year": "1st Year"})
 
     sequence = curriculum.get("sequence", []) if curriculum else []
     current_topic_index = progress.get("current_topic_index", 0) if progress else 0
@@ -130,6 +130,10 @@ async def get_user_recommendations(current_user: dict, db) -> dict:
         "completed": False,
         "current_topic": topic_label,
         "topic_code": topic_code,
+        "dimension": current_topic.get("dimension"),
+        "priority": current_topic.get("priority"),
+        "phase": current_topic.get("phase"),
+        "plan_label": curriculum.get("plan_label") if curriculum else "",
         "target_role": target_role,
         "primary_gap": topic_label,
         "learning_style": learning_style,

@@ -19,6 +19,12 @@ export const Learning: React.FC = () => {
   const [learningStyle, setLearningStyle] = useState<string>('');
   const [lastCuratedAt, setLastCuratedAt] = useState<string>('');
 
+  // Curriculum Roadmap Metadata Signals
+  const [priority, setPriority] = useState<string>('');
+  const [dimension, setDimension] = useState<string>('');
+  const [phase, setPhase] = useState<string>('');
+  const [planLabel, setPlanLabel] = useState<string>('');
+
   const formatTimeAgo = (isoString?: string) => {
     if (!isoString) return 'Just now';
     try {
@@ -66,6 +72,10 @@ export const Learning: React.FC = () => {
             if (data.primary_gap) setPrimaryGap(data.primary_gap);
             if (data.learning_style) setLearningStyle(data.learning_style);
             if (data.generated_at) setLastCuratedAt(data.generated_at);
+            if (data.priority) setPriority(data.priority);
+            if (data.dimension) setDimension(data.dimension);
+            if (data.phase) setPhase(data.phase);
+            if (data.plan_label) setPlanLabel(data.plan_label);
 
             const recs = data.recommendations || data.resources || [];
             if (recs.length > 0) {
@@ -105,6 +115,10 @@ export const Learning: React.FC = () => {
         if (data.primary_gap) setPrimaryGap(data.primary_gap);
         if (data.learning_style) setLearningStyle(data.learning_style);
         if (data.generated_at) setLastCuratedAt(data.generated_at);
+        if (data.priority) setPriority(data.priority);
+        if (data.dimension) setDimension(data.dimension);
+        if (data.phase) setPhase(data.phase);
+        if (data.plan_label) setPlanLabel(data.plan_label);
 
         const recs = data.recommendations || data.resources || [];
         if (recs.length > 0) {
@@ -225,13 +239,58 @@ export const Learning: React.FC = () => {
         </div>
       </div>
 
-      {/* Status progression banner */}
-      {statusMsg && (
-        <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-xs text-purple-300 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />}
-            <span>{statusMsg}</span>
+      {/* Strategic Focus & Priority Badge Row */}
+      {(priority || dimension || phase) && (
+        <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-purple-950/30 via-slate-900/60 to-indigo-950/30">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Priority Badge */}
+            {priority === 'P0' && (
+              <span className="px-3 py-1 rounded-lg text-xs font-black bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-lg shadow-rose-500/15 animate-pulse flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping" />
+                P0 · Critical Focus
+              </span>
+            )}
+            {priority === 'P1' && (
+              <span className="px-3 py-1 rounded-lg text-xs font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-purple-400" />
+                P1 · High Priority
+              </span>
+            )}
+            {priority === 'P2' && (
+              <span className="px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                P2 · Medium Focus
+              </span>
+            )}
+            {priority === 'P3' && (
+              <span className="px-3 py-1 rounded-lg text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-slate-500" />
+                P3 · Postponable
+              </span>
+            )}
+
+            {/* Dimension Badge */}
+            {dimension && (
+              <span className="px-3 py-1 rounded-lg text-xs font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5 capitalize">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                {dimension.replace('_', ' ')}
+              </span>
+            )}
+
+            {/* Phase Badge */}
+            {phase && (
+              <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5">
+                <Compass className="w-3.5 h-3.5 text-indigo-400" />
+                {phase}
+              </span>
+            )}
           </div>
+
+          {planLabel && (
+            <span className="text-[11px] font-medium text-slate-400 italic">
+              {planLabel}
+            </span>
+          )}
         </div>
       )}
 

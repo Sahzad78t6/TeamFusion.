@@ -2,22 +2,12 @@ import logging
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from app.config import settings
+from app.curriculum_data import ALL_CURRICULA, ALL_TOPIC_RESOURCES, DEFAULT_GOALS
 
 logger = logging.getLogger("growthos.db")
 
 client: Optional[AsyncIOMotorClient] = None
 db: Optional[AsyncIOMotorDatabase] = None
-
-DEFAULT_GOALS = [
-    {"code": "ml_engineer", "name": "ML / AI Engineer"},
-    {"code": "web_dev", "name": "Full-Stack Web Developer"},
-    {"code": "app_dev", "name": "Mobile App Developer"},
-    {"code": "data_analyst", "name": "Data Analyst / Data Scientist"},
-    {"code": "cybersecurity", "name": "Cybersecurity Engineer"},
-    {"code": "cloud_devops", "name": "Cloud / DevOps Engineer"},
-    {"code": "competitive_programmer", "name": "Competitive Programmer / SDE"},
-    {"code": "product_nontech", "name": "Product / Non-Tech Track"},
-]
 
 SEED_CURRICULUM = {
     "goal": "ml_engineer",
@@ -585,38 +575,40 @@ async def init_db() -> None:
     await users_collection.create_index("email", unique=True)
     logger.info("Unique index on users.email verified/created.")
 
-    # Goals seeding
+    # Goals seeding (replace/upsert with 10 approved pathways)
     goals_collection = database["goals"]
-    goal_count = await goals_collection.count_documents({})
-    if goal_count == 0:
-        await goals_collection.insert_many(DEFAULT_GOALS)
-        logger.info(f"Seeded {len(DEFAULT_GOALS)} initial career track goals.")
-    else:
-        logger.info(f"Goals collection already contains {goal_count} items.")
+    await goals_collection.delete_many({})
+    await goals_collection.insert_many(DEFAULT_GOALS)
+    logger.info(f"Seeded {len(DEFAULT_GOALS)} approved career pathway goals.")
 
-    # Curriculum index and seeding
+    # Curriculum index and seeding (upsert 40 curricula across 10 goals x 4 years)
     curriculum_collection = database["curriculum"]
     await curriculum_collection.create_index([("goal", 1), ("year", 1)], unique=True)
     logger.info("Unique compound index on curriculum (goal, year) verified/created.")
 
-    curriculum_count = await curriculum_collection.count_documents({})
-    if curriculum_count == 0:
-        await curriculum_collection.insert_one(SEED_CURRICULUM)
-        logger.info("Seeded ML Engineer 1st Year curriculum path.")
-    else:
-        logger.info(f"Curriculum collection already contains {curriculum_count} paths.")
+    # Reset curriculum collection to ensure exact 40 approved curricula
+    await curriculum_collection.delete_many({})
 
-    # Resources index and seeding
+    for curr in ALL_CURRICULA:
+        await curriculum_collection.update_one(
+            {"goal": curr["goal"], "year": curr["year"]},
+            {"$set": curr},
+            upsert=True,
+        )
+    logger.info(f"Seeded/updated {len(ALL_CURRICULA)} research-backed curriculum paths.")
+
+    # Resources index and seeding (upsert all unique topics)
     resources_collection = database["resources"]
     await resources_collection.create_index("topic_code", unique=True)
     logger.info("Unique index on resources.topic_code verified/created.")
 
-    resource_count = await resources_collection.count_documents({})
-    if resource_count == 0:
-        await resources_collection.insert_many(SEED_RESOURCES)
-        logger.info(f"Seeded {len(SEED_RESOURCES)} topic resource sets.")
-    else:
-        logger.info(f"Resources collection already contains {resource_count} items.")
+    for res in ALL_TOPIC_RESOURCES:
+        await resources_collection.update_one(
+            {"topic_code": res["topic_code"]},
+            {"$set": res},
+            upsert=True,
+        )
+    logger.info(f"Seeded/updated {len(ALL_TOPIC_RESOURCES)} topic resource catalogs.")
 
     # Phase 3: Cohorts indexes
     cohorts_collection = database["cohorts"]

@@ -14,12 +14,12 @@ async def get_planner_tasks(current_user: dict = Depends(get_current_user)):
     user_id = str(current_user["_id"])
     progress = await db["user_progress"].find_one({"user_id": user_id})
 
-    goal = (progress.get("goal") if progress else None) or current_user.get("goal") or "ml_engineer"
+    goal = (progress.get("goal") if progress else None) or current_user.get("goal") or "software_engineering"
     year = (progress.get("year") if progress else None) or current_user.get("year") or "1st Year"
 
     curriculum = await db["curriculum"].find_one({"goal": goal, "year": year})
     if not curriculum:
-        curriculum = await db["curriculum"].find_one({"goal": "ml_engineer", "year": "1st Year"})
+        curriculum = await db["curriculum"].find_one({"goal": "software_engineering", "year": "1st Year"})
 
     sequence = curriculum.get("sequence", []) if curriculum else []
     current_topic_index = progress.get("current_topic_index", 0) if progress else 0

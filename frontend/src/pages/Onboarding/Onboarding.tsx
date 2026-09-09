@@ -6,14 +6,16 @@ import { Button } from '../../components/common/Button';
 import { useApp } from '../../context/AppContext';
 
 const GOAL_OPTIONS: [string, string][] = [
-  ['ml_engineer', 'ML / AI Engineer'],
-  ['web_dev', 'Full-Stack Web Developer'],
-  ['app_dev', 'Mobile App Developer'],
-  ['data_analyst', 'Data Analyst / Data Scientist'],
-  ['cybersecurity', 'Cybersecurity Engineer'],
-  ['cloud_devops', 'Cloud / DevOps Engineer'],
-  ['competitive_programmer', 'Competitive Programmer / SDE'],
-  ['product_nontech', 'Product / Non-Tech Track'],
+  ['software_engineering', 'Software Engineering'],
+  ['aiml_engineering', 'AI/ML Engineering'],
+  ['data_engineering', 'Data Engineering'],
+  ['cybersecurity', 'Cybersecurity'],
+  ['cloud_devops_sre', 'Cloud/DevOps/SRE Engineering'],
+  ['data_science', 'Data Science'],
+  ['data_analytics_bi', 'Data Analytics & BI'],
+  ['embedded_systems', 'Embedded & Systems Engineering'],
+  ['qa_automation', 'QA Automation / Software Test Engineering'],
+  ['frontend_fullstack', 'Frontend & Full-Stack Application Engineering'],
 ];
 
 const YEAR_OPTIONS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
@@ -26,7 +28,7 @@ export const Onboarding: React.FC = () => {
   const { submitOnboarding } = useApp();
 
   // 3-step wizard state
-  const [goalCode, setGoalCode] = useState<string>('ml_engineer');
+  const [goalCode, setGoalCode] = useState<string>('software_engineering');
   const [yearLabel, setYearLabel] = useState<string>('1st Year');
   const [college, setCollege] = useState<string>('');
 

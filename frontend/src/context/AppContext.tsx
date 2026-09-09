@@ -37,6 +37,14 @@ export interface AppContextType {
   identityTwin: IdentityTwin;
   setIdentityTwin: React.Dispatch<React.SetStateAction<IdentityTwin>>;
   learningResources: LearningResource[];
+  curriculumPlan: string;
+  phaseInfo: {
+    current_phase: string;
+    plan_label: string;
+    phase_step: number;
+    total_phases: number;
+    display: string;
+  };
   setLearningResources: React.Dispatch<React.SetStateAction<LearningResource[]>>;
   opportunities: Opportunity[];
   setOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
@@ -77,6 +85,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [learningResources, setLearningResources] = useState<LearningResource[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [curriculumPlan, setCurriculumPlan] = useState<string>('');
+  const [phaseInfo, setPhaseInfo] = useState<{
+    current_phase: string;
+    plan_label: string;
+    phase_step: number;
+    total_phases: number;
+    display: string;
+  }>({
+    current_phase: '',
+    plan_label: '',
+    phase_step: 1,
+    total_phases: 4,
+    display: '',
+  });
   const [reflections, setReflections] = useState<ReflectionEntry[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary>(emptyAnalytics);
@@ -132,6 +154,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!authToken) return;
     try {
       const data = await getDashboardApi(authToken);
+      if (data.plan_label) setCurriculumPlan(data.plan_label);
+      if (data.phase_info) setPhaseInfo(data.phase_info);
       if (data.identity_twin) {
         setIdentityTwin((prev) => ({
           ...prev,
@@ -420,6 +444,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         identityTwin,
         setIdentityTwin,
         learningResources,
+        curriculumPlan,
+        phaseInfo,
         setLearningResources,
         opportunities,
         setOpportunities,

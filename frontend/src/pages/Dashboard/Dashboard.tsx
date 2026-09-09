@@ -22,7 +22,7 @@ import { ProgressRing } from '../../components/common/ProgressRing';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 
 export const Dashboard: React.FC = () => {
-  const { user, identityTwin, tasks, toggleTask, opportunities, learningResources, analytics, setIsCopilotOpen } = useApp();
+  const { user, identityTwin, tasks, toggleTask, opportunities, learningResources, analytics, setIsCopilotOpen, curriculumPlan, phaseInfo } = useApp();
 
   const completedCount = tasks.filter((t) => t.isCompleted).length;
   const taskProgress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
@@ -73,6 +73,28 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Career Pathway Strategy & Phase Progress Banner */}
+      {(curriculumPlan || phaseInfo?.display) && (
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-indigo-950/50 to-slate-900/90 border border-purple-500/25 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 backdrop-blur-xl shadow-lg">
+          <div className="space-y-1">
+            <span className="text-[11px] font-extrabold uppercase tracking-widest text-purple-400">
+              {curriculumPlan || 'Career Pathway Strategy'}
+            </span>
+            <h4 className="text-sm md:text-base font-extrabold text-white flex items-center gap-2">
+              <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
+              {phaseInfo?.display || phaseInfo?.current_phase || 'Active Strategy Phase'}
+            </h4>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="cyan" icon={<Sparkles className="w-3.5 h-3.5" />}>
+              {phaseInfo?.phase_step && phaseInfo?.total_phases
+                ? `Phase ${phaseInfo.phase_step} of ${phaseInfo.total_phases}`
+                : 'Strategy Active'}
+            </Badge>
+          </div>
+        </div>
+      )}
 
       {/* Core Key Metric Cards (4 Grid) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
