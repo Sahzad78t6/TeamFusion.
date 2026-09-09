@@ -561,7 +561,15 @@ export async function getCurriculumTopicsApi(goal: string, year: string): Promis
     headers: { 'Content-Type': 'application/json' },
   });
   return await safeParseResponse<CurriculumTopicItem[]>(response, 'Failed to fetch curriculum topics.');
+}export async function createContestApi(
+  token: string,
+  payload: { cohort_id: string; question_count: number; start_time: string; end_time: string }
+): Promise<any> {
+  const response = await safeFetch(`${API_BASE_URL}/institutions/contests`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return await safeParseResponse(response, 'Failed to create contest session.');
 }
-
-
 

@@ -23,7 +23,7 @@ export const Planner: React.FC = () => {
             </Badge>
             <Badge variant="cyan">{completedCount} of {tasks.length} Completed</Badge>
             {skippedTopics && skippedTopics.length > 0 && (
-              <Badge variant="emerald" icon={<BookCheck className="w-3.5 h-3.5 text-emerald-400" />}>
+              <Badge variant="green" icon={<BookCheck className="w-3.5 h-3.5 text-emerald-400" />}>
                 {skippedTopics.length} Pre-known Skipped
               </Badge>
             )}
