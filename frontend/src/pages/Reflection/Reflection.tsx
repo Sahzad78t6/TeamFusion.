@@ -7,11 +7,14 @@ import { Button } from '../../components/common/Button';
 import { MoodType } from '../../types';
 
 export const Reflection: React.FC = () => {
-  const { reflections, addReflection, setIsCopilotOpen } = useApp();
+  const { reflections, addReflection, refreshDashboard } = useApp();
   const [content, setContent] = useState('');
   const [selectedMood, setSelectedMood] = useState<MoodType>('ecstatic');
   const [selectedEmoji, setSelectedEmoji] = useState('🚀');
-  const [isRecording, setIsRecording] = useState(false);
+
+  React.useEffect(() => {
+    refreshDashboard();
+  }, []);
 
   const moods: { type: MoodType; emoji: string; label: string }[] = [
     { type: 'ecstatic', emoji: '🚀', label: 'Ecstatic' },
@@ -43,9 +46,7 @@ export const Reflection: React.FC = () => {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Badge variant="purple" icon={<Sparkles className="w-3.5 h-3.5 text-amber-300" />}>
-              Mem0 Cognitive Memory Active
-            </Badge>
+
             <Badge variant="cyan">{reflections.length} Journal Entries Logged</Badge>
           </div>
           <h1 className="text-3xl font-extrabold text-white mt-2">Reflection Journal</h1>
@@ -94,18 +95,7 @@ export const Reflection: React.FC = () => {
               className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none leading-relaxed"
             />
 
-            {/* Voice Record UI Simulator Button */}
-            <button
-              type="button"
-              onClick={() => setIsRecording(!isRecording)}
-              className={`absolute right-3 bottom-4 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${isRecording
-                ? 'bg-rose-500/20 border-rose-500/40 text-rose-400 animate-pulse'
-                : 'bg-white/10 border-white/10 text-slate-300 hover:bg-white/20'
-                }`}
-            >
-              <Mic className="w-3.5 h-3.5" />
-              <span>{isRecording ? 'Recording (00:14)...' : 'Voice Note'}</span>
-            </button>
+
           </div>
 
           <div className="flex items-center justify-between">

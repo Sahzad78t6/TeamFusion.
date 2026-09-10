@@ -16,13 +16,8 @@ export const IdentityTwin: React.FC = () => {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Badge variant="purple" icon={<Sparkles className="w-3.5 h-3.5" />}>
-              Mem0 Memory Sync Active
-            </Badge>
-            <Badge variant="cyan">Identity Drift: {identityTwin.driftScore}%</Badge>
           </div>
           <h1 className="text-3xl font-extrabold text-white mt-2">Identity Twin Engine</h1>
-          <p className="text-xs text-slate-400">Real-time model comparing your current self vs your target archetype.</p>
         </div>
 
         <Button
@@ -129,9 +124,8 @@ export const IdentityTwin: React.FC = () => {
           {identityTwin.insights.map((ins) => (
             <div key={ins.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 hover:border-purple-500/30 transition-colors">
               <div className="flex items-center justify-between">
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                  ins.type === 'positive' ? 'text-emerald-400' : ins.type === 'warning' ? 'text-rose-400' : 'text-amber-400'
-                }`}>
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${ins.type === 'positive' ? 'text-emerald-400' : ins.type === 'warning' ? 'text-rose-400' : 'text-amber-400'
+                  }`}>
                   {ins.type}
                 </span>
                 {ins.type === 'positive' ? (

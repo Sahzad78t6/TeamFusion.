@@ -332,15 +332,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch reflections API
       try {
         const refList = await getReflectionsApi(authToken);
-        if (Array.isArray(refList) && refList.length > 0) {
+        if (Array.isArray(refList)) {
           setReflections(
             refList.map((r: any) => ({
-              id: r.id,
+              id: r.id || r._id,
               date: r.created_at ? r.created_at.slice(0, 10) : 'Today',
-              mood: r.mood_score <= 2 ? 'stressed' : r.mood_score >= 4 ? 'ecstatic' : 'thoughtful',
-              emoji: r.mood_score <= 2 ? '💡' : r.mood_score >= 4 ? '🚀' : '🧠',
+              mood: r.mindset_state || (r.mood_score <= 2 ? 'stressed' : r.mood_score >= 4 ? 'ecstatic' : 'thoughtful'),
+              emoji: r.mindset_state === 'ecstatic' ? '🚀' : r.mindset_state === 'happy' || r.mindset_state === 'energized' ? '⚡' : r.mindset_state === 'thoughtful' ? '🧠' : r.mindset_state === 'neutral' || r.mindset_state === 'balanced' ? '🌿' : '💡',
               prompt: 'Daily Reflection Entry',
-              content: r.reflection || r.notes || r.ai_insight || '',
+              content: r.entry_text || r.reflection || r.notes || r.ai_insight || '',
               sentimentScore: r.mood_score ? r.mood_score * 20 : 85,
               keyInsights: r.ai_insight ? [r.ai_insight] : ['Logged to Mem0'],
             }))
@@ -529,11 +529,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `ref-${Date.now()}`,
       date: new Date().toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }),
     };
-    setReflections((prev) => [entry, ...prev]);
 
     if (authToken) {
       try {
-        await createReflectionApi(authToken, {
+        const res = await createReflectionApi(authToken, {
+          mindset_state: newRef.mood,
+          entry_text: newRef.content,
           reflection: newRef.content,
           mood_score: newRef.mood === 'ecstatic' || newRef.mood === 'happy' ? 5 : newRef.mood === 'stressed' ? 1 : 3,
           energy_level: 4,
@@ -542,11 +543,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           completed_tasks: [],
           study_hours: 1.5,
         });
-        await refreshDashboard();
+        if (res && (res.id || res._id)) {
+          entry.id = res.id || res._id;
+          if (res.created_at) {
+            entry.date = res.created_at.slice(0, 10);
+          }
+        }
       } catch (err) {
         console.warn('Failed to persist reflection entry:', err);
       }
     }
+
+    setReflections((prev) => [entry, ...prev]);
+    await refreshDashboard();
   };
 
   return (

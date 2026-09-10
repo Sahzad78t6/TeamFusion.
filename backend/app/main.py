@@ -18,6 +18,7 @@ from app.routers.profile import router as profile_router
 from app.routers.push import router as push_router
 from app.routers.opportunity import router as opportunity_router
 from app.routers.colleges import router as colleges_router
+from app.routers.reflection import router as reflection_router
 from app.services.inactivity_job import check_inactive_users
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -86,6 +87,7 @@ app.include_router(profile_router)
 app.include_router(push_router)
 app.include_router(opportunity_router)
 app.include_router(colleges_router)
+app.include_router(reflection_router)
 
 
 @app.get("/health")
