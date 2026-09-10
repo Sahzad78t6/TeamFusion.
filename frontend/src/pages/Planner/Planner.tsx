@@ -4,16 +4,41 @@ import { Calendar, CheckCircle2, Circle, Clock, Plus, Flame, Sparkles, ChevronDo
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
+import { TopicCheckModal } from '../../components/TopicCheckModal';
 
 export const Planner: React.FC = () => {
-  const { tasks, toggleTask, skippedTopics } = useApp();
+  const { tasks, toggleTask, skippedTopics, refreshDashboard } = useApp();
   const [activeTab, setActiveTab] = useState<'timeline' | 'kanban'>('timeline');
   const [isSkippedOpen, setIsSkippedOpen] = useState(false);
+  const [activeCheckTask, setActiveCheckTask] = useState<{ id: string; title: string } | null>(null);
 
   const completedCount = tasks.filter((t) => t.isCompleted).length;
 
+  const handleTaskClick = (task: { id: string; title: string; isCompleted: boolean }) => {
+    if (task.isCompleted) {
+      toggleTask(task.id);
+    } else {
+      setActiveCheckTask({ id: task.id, title: task.title });
+    }
+  };
+
+  const handleCheckPassed = () => {
+    setActiveCheckTask(null);
+    refreshDashboard();
+  };
+
   return (
     <div className="space-y-8 pb-12">
+      {/* Topic Check Anti-Cheat Modal */}
+      {activeCheckTask && (
+        <TopicCheckModal
+          topicCode={activeCheckTask.id}
+          topicLabel={activeCheckTask.title}
+          onPassed={handleCheckPassed}
+          onClose={() => setActiveCheckTask(null)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -29,24 +54,21 @@ export const Planner: React.FC = () => {
             )}
           </div>
           <h1 className="text-3xl font-extrabold text-white mt-2">Daily Planner & Timeline</h1>
-          <p className="text-xs text-slate-400">Broken down from your Identity Twin milestone roadmap.</p>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center p-1 bg-white/5 border border-white/10 rounded-xl">
             <button
               onClick={() => setActiveTab('timeline')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                activeTab === 'timeline' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${activeTab === 'timeline' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
             >
               Timeline
             </button>
             <button
               onClick={() => setActiveTab('kanban')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                activeTab === 'kanban' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${activeTab === 'kanban' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
             >
               Priority Board
             </button>
@@ -75,20 +97,18 @@ export const Planner: React.FC = () => {
               >
                 {/* Timeline Dot */}
                 <div
-                  className={`absolute -left-[31px] top-1.5 w-4 h-4 rounded-full border-2 transition-all ${
-                    task.isCompleted
-                      ? 'bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/50'
-                      : 'bg-[#12141d] border-purple-400'
-                  }`}
+                  className={`absolute -left-[31px] top-1.5 w-4 h-4 rounded-full border-2 transition-all ${task.isCompleted
+                    ? 'bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/50'
+                    : 'bg-[#12141d] border-purple-400'
+                    }`}
                 />
 
                 <div
-                  onClick={() => toggleTask(task.id)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                    task.isCompleted
-                      ? 'bg-emerald-500/5 border-emerald-500/20 text-slate-400'
-                      : 'bg-white/5 border-white/10 hover:border-purple-500/40 text-white'
-                  }`}
+                  onClick={() => handleTaskClick(task)}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${task.isCompleted
+                    ? 'bg-emerald-500/5 border-emerald-500/20 text-slate-400'
+                    : 'bg-white/5 border-white/10 hover:border-purple-500/40 text-white'
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     {task.isCompleted ? (
@@ -173,7 +193,7 @@ export const Planner: React.FC = () => {
                   {prioTasks.map((t) => (
                     <div
                       key={t.id}
-                      onClick={() => toggleTask(t.id)}
+                      onClick={() => handleTaskClick(t)}
                       className="p-3.5 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/40 cursor-pointer space-y-2"
                     >
                       <h4 className={`text-xs font-bold text-white ${t.isCompleted ? 'line-through opacity-50' : ''}`}>

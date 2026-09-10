@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status
 from app.auth import get_current_user
 from app.curriculum_utils import get_current_topic
 from app.db import get_db
-from app.models import TaskUpdateRequest
+from app.models import TaskUpdateRequest, TopicCheckSubmissionRequest
 
 router = APIRouter(prefix="/planner", tags=["planner"])
 
@@ -116,3 +116,84 @@ async def update_planner_task(
         )
 
     return {"id": task_id, "completed": is_completed}
+
+@router.get("/tasks/{topic_code}/check", status_code=status.HTTP_200_OK)
+async def get_topic_check(
+    topic_code: str,
+    current_user: dict = Depends(get_current_user),
+):
+    db = get_db()
+    questions = await db["topic_checks"].find({"topic_code": topic_code}).to_list(100)
+
+    if not questions:
+        return {"available": False}
+
+    import random
+    if len(questions) > 10:
+        questions = random.sample(questions, 10)
+
+    resolved_questions = []
+    for q in questions:
+        resolved_questions.append({
+            "id": str(q["_id"]),
+            "prompt": q["prompt"],
+            "options": q["options"],
+        })
+
+    return {
+        "available": True,
+        "topic_code": topic_code,
+        "questions": resolved_questions,
+    }
+
+@router.post("/tasks/{topic_code}/check/submit", status_code=status.HTTP_200_OK)
+async def submit_topic_check(
+    topic_code: str,
+    payload: TopicCheckSubmissionRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    db = get_db()
+    user_id = str(current_user["_id"])
+
+    questions = await db["topic_checks"].find({"topic_code": topic_code}).to_list(100)
+    if not questions:
+        await update_planner_task(topic_code, TaskUpdateRequest(completed=True), current_user)
+        return {"passed": True, "score": 100, "message": "No topic check configured — auto marked as complete."}
+
+    total_questions = min(10, len(questions))
+    correct_count = 0
+    questions_map = {str(q["_id"]): q for q in questions}
+
+    if payload and payload.answers:
+        for qid, chosen_option in payload.answers.items():
+            if qid in questions_map:
+                if chosen_option == questions_map[qid].get("correct_option"):
+                    correct_count += 1
+
+    score_pct = round((correct_count / total_questions) * 100) if total_questions > 0 else 0
+    passed = score_pct >= 80
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db["topic_check_attempts"].insert_one({
+        "user_id": user_id,
+        "topic_code": topic_code,
+        "score_pct": score_pct,
+        "passed": passed,
+        "attempted_at": now_iso
+    })
+
+    topic_label = topic_code.replace("_", " ").title()
+
+    if passed:
+        await update_planner_task(topic_code, TaskUpdateRequest(completed=True), current_user)
+        return {
+            "passed": True,
+            "score": score_pct,
+            "message": f"Awesome job! You scored {score_pct}% and mastered {topic_label}."
+        }
+    else:
+        return {
+            "passed": False,
+            "score": score_pct,
+            "message": f"You scored {score_pct}%. You need 80% to mark this complete — review {topic_label} and try again."
+        }

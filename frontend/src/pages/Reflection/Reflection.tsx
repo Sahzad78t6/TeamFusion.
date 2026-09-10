@@ -49,7 +49,6 @@ export const Reflection: React.FC = () => {
             <Badge variant="cyan">{reflections.length} Journal Entries Logged</Badge>
           </div>
           <h1 className="text-3xl font-extrabold text-white mt-2">Reflection Journal</h1>
-          <p className="text-xs text-slate-400">Daily cognitive reflections extract insights and update your Identity Twin vector.</p>
         </div>
       </div>
 
@@ -72,11 +71,10 @@ export const Reflection: React.FC = () => {
                   setSelectedMood(m.type);
                   setSelectedEmoji(m.emoji);
                 }}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                  selectedMood === m.type
-                    ? 'bg-purple-600/30 border-purple-500 text-white shadow-md shadow-purple-500/20'
-                    : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
-                }`}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border ${selectedMood === m.type
+                  ? 'bg-purple-600/30 border-purple-500 text-white shadow-md shadow-purple-500/20'
+                  : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                  }`}
               >
                 <span>{m.emoji}</span>
                 <span>{m.label}</span>
@@ -100,11 +98,10 @@ export const Reflection: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsRecording(!isRecording)}
-              className={`absolute right-3 bottom-4 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                isRecording
-                  ? 'bg-rose-500/20 border-rose-500/40 text-rose-400 animate-pulse'
-                  : 'bg-white/10 border-white/10 text-slate-300 hover:bg-white/20'
-              }`}
+              className={`absolute right-3 bottom-4 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${isRecording
+                ? 'bg-rose-500/20 border-rose-500/40 text-rose-400 animate-pulse'
+                : 'bg-white/10 border-white/10 text-slate-300 hover:bg-white/20'
+                }`}
             >
               <Mic className="w-3.5 h-3.5" />
               <span>{isRecording ? 'Recording (00:14)...' : 'Voice Note'}</span>

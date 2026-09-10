@@ -27,10 +27,12 @@ import { Button } from '../../components/common/Button';
 import { ProgressRing } from '../../components/common/ProgressRing';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import { subscribeToPush } from '../../utils/pushNotifications';
+import { TopicCheckModal } from '../../components/TopicCheckModal';
 
 export const Dashboard: React.FC = () => {
-  const { user, identityTwin, tasks, toggleTask, opportunities, learningResources, analytics, setIsCopilotOpen, curriculumPlan, phaseInfo, skippedTopics, authToken } = useApp();
+  const { user, identityTwin, tasks, toggleTask, opportunities, learningResources, analytics, setIsCopilotOpen, curriculumPlan, phaseInfo, skippedTopics, authToken, refreshDashboard } = useApp();
   const [isSkippedOpen, setIsSkippedOpen] = useState(false);
+  const [activeCheckTask, setActiveCheckTask] = useState<{ id: string; title: string } | null>(null);
 
   const [showPushBanner, setShowPushBanner] = useState<boolean>(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) return false;
@@ -222,6 +224,19 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Topic Check Anti-Cheat Modal */}
+      {activeCheckTask && (
+        <TopicCheckModal
+          topicCode={activeCheckTask.id}
+          topicLabel={activeCheckTask.title}
+          onPassed={() => {
+            setActiveCheckTask(null);
+            refreshDashboard();
+          }}
+          onClose={() => setActiveCheckTask(null)}
+        />
+      )}
+
       {/* Main Grid Section (Analytics + Today's Planner & Opportunities) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Weekly Growth Analytics & Learning Progress */}
@@ -234,7 +249,6 @@ export const Dashboard: React.FC = () => {
                   <TrendingUp className="w-4 h-4 text-purple-400" />
                   Growth Prediction & Learning Velocity
                 </h3>
-                <p className="text-xs text-slate-400">Activity & progression metric derived from active streak & tasks</p>
               </div>
               <Badge variant="purple">{user.growthScore}% Growth Score</Badge>
             </div>
@@ -246,11 +260,11 @@ export const Dashboard: React.FC = () => {
                     analytics.weeklyHeatmap && analytics.weeklyHeatmap.length > 0
                       ? analytics.weeklyHeatmap.map((h) => ({ month: h.day, score: Math.round(h.hours * 25) || user.growthScore }))
                       : [
-                          { month: 'Mon', score: Math.max(10, user.growthScore - 15) },
-                          { month: 'Tue', score: Math.max(15, user.growthScore - 10) },
-                          { month: 'Wed', score: Math.max(20, user.growthScore - 5) },
-                          { month: 'Thu', score: user.growthScore },
-                        ]
+                        { month: 'Mon', score: Math.max(10, user.growthScore - 15) },
+                        { month: 'Tue', score: Math.max(15, user.growthScore - 10) },
+                        { month: 'Wed', score: Math.max(20, user.growthScore - 5) },
+                        { month: 'Thu', score: user.growthScore },
+                      ]
                   }
                 >
                   <defs>
@@ -320,12 +334,17 @@ export const Dashboard: React.FC = () => {
               {tasks.map((task) => (
                 <div
                   key={task.id}
-                  onClick={() => toggleTask(task.id)}
-                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                    task.isCompleted
-                      ? 'bg-emerald-500/5 border-emerald-500/20 text-slate-400 line-through'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
-                  }`}
+                  onClick={() => {
+                    if (task.isCompleted) {
+                      toggleTask(task.id);
+                    } else {
+                      setActiveCheckTask({ id: task.id, title: task.title });
+                    }
+                  }}
+                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${task.isCompleted
+                    ? 'bg-emerald-500/5 border-emerald-500/20 text-slate-400 line-through'
+                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     {task.isCompleted ? (

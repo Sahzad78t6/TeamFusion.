@@ -471,6 +471,27 @@ export async function toggleTaskApi(token: string, taskId: string, completed: bo
   return await safeParseResponse(response, 'Failed to update task completion state.');
 }
 
+export async function getTopicCheckApi(token: string, topicCode: string): Promise<any> {
+  const response = await safeFetch(`${API_BASE_URL}/planner/tasks/${encodeURIComponent(topicCode)}/check`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse(response, 'Failed to fetch topic check.');
+}
+
+export async function submitTopicCheckApi(
+  token: string,
+  topicCode: string,
+  answers: Record<string, number>
+): Promise<any> {
+  const response = await safeFetch(`${API_BASE_URL}/planner/tasks/${encodeURIComponent(topicCode)}/check/submit`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ answers }),
+  });
+  return await safeParseResponse(response, 'Failed to submit topic check.');
+}
+
 export async function getPlansApi(token: string): Promise<any> {
   const response = await safeFetch(`${API_BASE_URL}/planner`, {
     method: 'GET',

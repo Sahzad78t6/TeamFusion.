@@ -66,6 +66,9 @@ class IdentityResponse(BaseModel):
 class TaskUpdateRequest(BaseModel):
     completed: bool = True
 
+class TopicCheckSubmissionRequest(BaseModel):
+    answers: Dict[str, int]
+
 class RefreshRequest(BaseModel):
     topic: Optional[str] = None
 

@@ -238,20 +238,18 @@ export const Learning: React.FC = () => {
                 <Badge variant="purple">Curator Run: {formatTimeAgo(lastCuratedAt)}</Badge>
                 <Badge variant="cyan">{learningResources.length} Resources Generated</Badge>
                 <Badge variant="blue">Skill Focus: {activeGap}</Badge>
-                <Badge variant="amber">Source: YouTube & Technical Web</Badge>
+
               </>
             ) : (
               <>
                 <Badge variant="outline">AI Curator Ready</Badge>
                 <Badge variant="cyan">{learningResources.length} Resources</Badge>
-                <Badge variant="amber">Source: YouTube & Technical Web</Badge>
+
               </>
             )}
           </div>
           <h1 className="text-3xl font-extrabold text-white mt-2">Learning Curation</h1>
-          <p className="text-xs text-slate-400">
-            Personalized learning paths curated by Learning Curator Agent & stored in MongoDB Atlas.
-          </p>
+
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -373,9 +371,7 @@ export const Learning: React.FC = () => {
                   <Badge variant="cyan">{liveVideos.length} Live Results</Badge>
                 )}
               </h2>
-              <p className="text-[11px] text-slate-400">
-                Scraped live using yt-dlp & playable inline with zero YouTube API key overhead.
-              </p>
+
             </div>
           </div>
         </div>
@@ -457,9 +453,7 @@ export const Learning: React.FC = () => {
                   </Badge>
                 )}
               </h2>
-              <p className="text-[11px] text-slate-400">
-                Scraped live from DuckDuckGo, Open Library & arXiv. Click to read externally in a new tab.
-              </p>
+
             </div>
           </div>
 
@@ -476,11 +470,10 @@ export const Learning: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTabRead(tab.id)}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
-                  activeTabRead === tab.id
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
+                className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${activeTabRead === tab.id
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
               >
                 <span>{tab.label}</span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/40 text-slate-400 border border-white/5">
@@ -591,9 +584,8 @@ export const Learning: React.FC = () => {
                           />
                         ) : null}
                         <div
-                          className={`w-16 h-22 rounded-lg bg-amber-500/10 border border-amber-500/20 flex flex-col items-center justify-center text-amber-400 shrink-0 p-2 text-center ${
-                            book.cover_url ? 'hidden' : ''
-                          }`}
+                          className={`w-16 h-22 rounded-lg bg-amber-500/10 border border-amber-500/20 flex flex-col items-center justify-center text-amber-400 shrink-0 p-2 text-center ${book.cover_url ? 'hidden' : ''
+                            }`}
                         >
                           <BookOpen className="w-6 h-6 mb-1" />
                           <span className="text-[9px] font-bold line-clamp-2 text-amber-300">Open Library</span>
@@ -703,11 +695,10 @@ export const Learning: React.FC = () => {
           <button
             key={t.value}
             onClick={() => setSelectedType(t.value)}
-            className={`px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all border ${
-              selectedType === t.value
-                ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-500/20'
-                : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all border ${selectedType === t.value
+              ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-500/20'
+              : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+              }`}
           >
             {t.label}
           </button>
@@ -764,17 +755,15 @@ export const Learning: React.FC = () => {
                 <div className="absolute top-3 right-3 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => toggleLikeResource(res.id)}
-                    className={`p-2 rounded-xl backdrop-blur-md border transition-colors ${
-                      res.isLiked ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-black/40 border-white/10 text-slate-400 hover:text-white'
-                    }`}
+                    className={`p-2 rounded-xl backdrop-blur-md border transition-colors ${res.isLiked ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-black/40 border-white/10 text-slate-400 hover:text-white'
+                      }`}
                   >
                     <Heart className={`w-3.5 h-3.5 ${res.isLiked ? 'fill-rose-400' : ''}`} />
                   </button>
                   <button
                     onClick={() => toggleBookmarkResource(res.id)}
-                    className={`p-2 rounded-xl backdrop-blur-md border transition-colors ${
-                      res.isBookmarked ? 'bg-purple-500/20 border-purple-500/40 text-purple-300' : 'bg-black/40 border-white/10 text-slate-400 hover:text-white'
-                    }`}
+                    className={`p-2 rounded-xl backdrop-blur-md border transition-colors ${res.isBookmarked ? 'bg-purple-500/20 border-purple-500/40 text-purple-300' : 'bg-black/40 border-white/10 text-slate-400 hover:text-white'
+                      }`}
                   >
                     <Bookmark className={`w-3.5 h-3.5 ${res.isBookmarked ? 'fill-purple-300' : ''}`} />
                   </button>
