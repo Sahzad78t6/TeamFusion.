@@ -4,6 +4,7 @@ import { Landing } from '../pages/Landing/Landing';
 import { Login } from '../pages/Login/Login';
 import { Signup } from '../pages/Signup/Signup';
 import { Onboarding } from '../pages/Onboarding/Onboarding';
+import { AuthCallback } from '../pages/AuthCallback/AuthCallback';
 
 import { AppLayout } from '../components/layout/AppLayout';
 import { Dashboard } from '../pages/Dashboard/Dashboard';
@@ -48,6 +49,7 @@ export const AppRoutes: React.FC = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
 
       {/* Authenticated Layout */}
       <Route element={<ProtectedRoute />}>

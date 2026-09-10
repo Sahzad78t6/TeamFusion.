@@ -1,7 +1,11 @@
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlencode
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, status
+import httpx
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import RedirectResponse
 from pymongo.errors import DuplicateKeyError
 
 from app.auth import (
@@ -12,6 +16,7 @@ from app.auth import (
     to_user_response,
     verify_password,
 )
+from app.config import settings
 from app.db import get_db
 from app.models import AuthResponse, LoginRequest, SignupRequest, UserResponse
 
@@ -84,7 +89,19 @@ async def login(payload: LoginRequest):
     normalized_email = payload.email.lower().strip()
     user_doc = await db["users"].find_one({"email": normalized_email})
 
-    if not user_doc or not verify_password(payload.password, user_doc.get("password_hash", "")):
+    if not user_doc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    pwd_hash = user_doc.get("password_hash")
+    if not pwd_hash or not verify_password(payload.password, pwd_hash):
+        if not pwd_hash and user_doc.get("google_id"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This account was created with Google Sign-In. Please click 'Continue with Google'.",
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -107,6 +124,127 @@ async def login(payload: LoginRequest):
         token_type="bearer",
         user=user_response,
     )
+
+@router.get("/google/login")
+async def google_login():
+    state_token = jwt.encode(
+        {"nonce": secrets.token_hex(16), "exp": int((datetime.now(timezone.utc) + timedelta(minutes=10)).timestamp())},
+        settings.JWT_SECRET,
+        algorithm="HS256"
+    )
+
+    params = {
+        "response_type": "code",
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "scope": "openid email profile",
+        "state": state_token,
+        "prompt": "select_account",
+    }
+    url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+    return RedirectResponse(url=url)
+
+@router.get("/google/callback")
+async def google_callback(
+    code: str = Query(None),
+    state: str = Query(None),
+    error: str = Query(None)
+):
+    if error or not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Google authentication failed: {error or 'No authorization code provided'}"
+        )
+
+    # Exchange auth code for tokens
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        token_res = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+
+        if token_res.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to exchange authorization code with Google: {token_res.text}"
+            )
+
+        tokens = token_res.json()
+        access_token_google = tokens.get("access_token")
+
+        userinfo_res = await client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token_google}"}
+        )
+
+        if userinfo_res.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to fetch user profile from Google"
+            )
+
+        google_user = userinfo_res.json()
+
+    google_sub = google_user.get("sub")
+    email = (google_user.get("email") or "").lower().strip()
+    name = google_user.get("name") or google_user.get("given_name") or email.split("@")[0]
+
+    if not email or not google_sub:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google account did not return a valid email address"
+        )
+
+    db = get_db()
+    user_doc = await db["users"].find_one({"email": email})
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if user_doc:
+        updates = {}
+        if not user_doc.get("google_id"):
+            updates["google_id"] = google_sub
+        refresh_tok = user_doc.get("refresh_token") or generate_refresh_token()
+        if not user_doc.get("refresh_token"):
+            updates["refresh_token"] = refresh_tok
+
+        if updates:
+            await db["users"].update_one({"_id": user_doc["_id"]}, {"$set": updates})
+            user_doc = await db["users"].find_one({"_id": user_doc["_id"]})
+    else:
+        refresh_tok = generate_refresh_token()
+        user_doc = {
+            "name": name,
+            "email": email,
+            "google_id": google_sub,
+            "password_hash": None,
+            "role": "STUDENT",
+            "institution_id": None,
+            "onboarding_completed": False,
+            "goal": None,
+            "year": None,
+            "college": None,
+            "refresh_token": refresh_tok,
+            "created_at": now_iso,
+        }
+        result = await db["users"].insert_one(user_doc)
+        user_doc["_id"] = result.inserted_id
+
+    access_tok = create_access_token(str(user_doc["_id"]))
+
+    if "localhost" in settings.GOOGLE_REDIRECT_URI or "127.0.0.1" in settings.GOOGLE_REDIRECT_URI:
+        frontend_base = "http://localhost:5173"
+    else:
+        frontend_base = settings.FRONTEND_URL.rstrip("/")
+
+    redirect_url = f"{frontend_base}/auth/callback?token={access_tok}&refresh={refresh_tok}"
+    return RedirectResponse(url=redirect_url)
 
 @router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def me(current_user: dict = Depends(get_current_user)):
@@ -170,4 +308,3 @@ async def checkin(current_user: dict = Depends(get_current_user)):
         )
 
     return {"current_streak": new_streak, "longest_streak": new_longest}
-

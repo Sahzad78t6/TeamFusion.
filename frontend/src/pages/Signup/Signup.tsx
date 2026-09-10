@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Zap, Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle, Chrome } from 'lucide-react';
 import { Button } from '../../components/common/Button';
-import { signupApi } from '../../services/api';
+import { signupApi, API_BASE_URL } from '../../services/api';
 import { useApp } from '../../context/AppContext';
 
 export const Signup: React.FC = () => {
@@ -19,25 +19,7 @@ export const Signup: React.FC = () => {
   const navigate = useNavigate();
 
   const handleGoogleLogin = () => {
-    const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '';
-    const isDev = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1');
-    const redirectUri = (import.meta as any).env?.VITE_GOOGLE_REDIRECT_URI || 'https://teamfusion-os48.onrender.com';
-    const state = isDev ? 'dev' : 'prod';
-
-    if (googleClientId) {
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-        googleClientId
-      )}&redirect_uri=${encodeURIComponent(
-        redirectUri
-      )}&response_type=code&scope=${encodeURIComponent(
-        'openid email profile'
-      )}&state=${encodeURIComponent(state)}&prompt=select_account`;
-      window.location.href = authUrl;
-    } else {
-      const backendUrl = (import.meta as any).env?.VITE_API_URL || 'https://teamfusion-os48.onrender.com';
-      const cleanBackendUrl = backendUrl.replace(/\/api\/?$/, '');
-      window.location.href = `${cleanBackendUrl}/auth/google/login?state=${state}`;
-    }
+    window.location.href = `${API_BASE_URL}/auth/google/login`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
