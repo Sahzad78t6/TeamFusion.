@@ -76,6 +76,10 @@ export interface IdentityTwin {
     milestone: string;
     alignment: number;
   }[];
+  dimensionMastery?: { dimension: string; mastery_pct: number; completed?: number; total?: number }[];
+  activeFocus?: { dimension: string; label: string; target_mastery: number };
+  keySkillStrengths?: string[];
+  requiredTargetMastery?: string[];
 }
 
 export interface LearningResource {

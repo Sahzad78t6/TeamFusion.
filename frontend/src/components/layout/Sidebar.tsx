@@ -51,10 +51,22 @@ import { useApp } from '../../context/AppContext';
 export const Sidebar: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
-  const { user } = useApp();
+  const { user, identityTwin } = useApp();
 
   const isAdmin = user.role === 'INSTITUTION_ADMIN' || user.role === 'PLATFORM_ADMIN';
-  const navItems = isAdmin ? ADMIN_NAV : STUDENT_NAV;
+
+  const studentNavItems: NavItem[] = [
+    { label: 'Dashboard',            path: '/dashboard',         icon: LayoutDashboard },
+    { label: 'Identity Twin',        path: '/identity-twin',     icon: Sparkles,    badge: `${identityTwin.alignmentPercentage}%` },
+    { label: 'Learning Curation',    path: '/learning',          icon: BookOpen },
+    { label: 'Growth Opportunities', path: '/opportunities',     icon: Compass,     badge: 'AI Match' },
+    { label: 'Daily Planner',        path: '/planner',           icon: Calendar },
+    { label: 'Reflection',           path: '/reflection',        icon: PenTool },
+    { label: 'Assessments',          path: '/assessments',       icon: ClipboardList },
+    { label: 'Coding Contest',       path: '/contest',           icon: Code2,       badge: 'Live' },
+  ];
+
+  const navItems = isAdmin ? ADMIN_NAV : studentNavItems;
   const subtitleText = isAdmin ? 'Institution Admin' : 'AI Growth Engine';
   const homeLink = isAdmin ? '/institution/overview' : '/dashboard';
 

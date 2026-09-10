@@ -41,6 +41,8 @@ export const IdentityTwin: React.FC = () => {
         driftScore={identityTwin.driftScore}
         currentArchetype={identityTwin.currentArchetype}
         dreamArchetype={identityTwin.dreamArchetype}
+        dimensionMastery={identityTwin.dimensionMastery}
+        activeFocus={identityTwin.activeFocus}
       />
 
       {/* Identity Twin Comparison (Current vs Dream Identity with 3D TiltCards) */}
@@ -54,28 +56,25 @@ export const IdentityTwin: React.FC = () => {
           <h2 className="text-xl font-extrabold text-white">{identityTwin.currentArchetype}</h2>
 
           <div className="space-y-3 pt-2">
-            <span className="text-xs font-semibold text-slate-400 block">Core Values</span>
+            <span className="text-xs font-semibold text-slate-400 block">Target Role Focus</span>
             <div className="flex flex-wrap gap-2">
-              {identityTwin.coreValues.map((val, i) => (
-                <Badge key={i} variant="purple">{val}</Badge>
-              ))}
+              <Badge variant="purple">{identityTwin.dreamArchetype || 'Software Engineering'}</Badge>
             </div>
           </div>
 
           <div className="pt-2">
-            <span className="text-xs font-semibold text-slate-400 block mb-2">Key Skill Strengths</span>
+            <span className="text-xs font-semibold text-slate-400 block mb-2">Key Skill Strengths (Completed Topics)</span>
             <div className="space-y-2">
-              {identityTwin.skills.slice(0, 3).map((s, i) => (
-                <div key={i} className="space-y-1">
-                  <div className="flex justify-between text-xs text-slate-300">
-                    <span>{s.skill}</span>
-                    <span className="font-bold text-purple-400">{s.currentLevel}%</span>
+              {identityTwin.keySkillStrengths && identityTwin.keySkillStrengths.length > 0 ? (
+                identityTwin.keySkillStrengths.map((label, i) => (
+                  <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs text-slate-200">
+                    <span className="font-semibold">{label}</span>
+                    <Badge variant="purple">Mastered (100%)</Badge>
                   </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-purple-500 h-full" style={{ width: `${s.currentLevel}%` }} />
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-xs text-slate-400 italic">No completed topics yet. Complete topics in your Planner to build skill strengths.</p>
+              )}
             </div>
           </div>
         </TiltCard>
@@ -89,28 +88,25 @@ export const IdentityTwin: React.FC = () => {
           <h2 className="text-xl font-extrabold text-white">{identityTwin.dreamArchetype}</h2>
 
           <div className="space-y-3 pt-2">
-            <span className="text-xs font-semibold text-slate-400 block">Target Values</span>
+            <span className="text-xs font-semibold text-slate-400 block">Target Role</span>
             <div className="flex flex-wrap gap-2">
-              {identityTwin.dreamValues.map((val, i) => (
-                <Badge key={i} variant="blue">{val}</Badge>
-              ))}
+              <Badge variant="blue">{identityTwin.dreamArchetype || 'Software Engineering'}</Badge>
             </div>
           </div>
 
           <div className="pt-2">
-            <span className="text-xs font-semibold text-slate-400 block mb-2">Required Target Mastery</span>
+            <span className="text-xs font-semibold text-slate-400 block mb-2">Required Target Mastery (Critical P0 Topics)</span>
             <div className="space-y-2">
-              {identityTwin.skills.slice(0, 3).map((s, i) => (
-                <div key={i} className="space-y-1">
-                  <div className="flex justify-between text-xs text-slate-300">
-                    <span>{s.skill}</span>
-                    <span className="font-bold text-indigo-400">Target: {s.targetLevel}%</span>
+              {identityTwin.requiredTargetMastery && identityTwin.requiredTargetMastery.length > 0 ? (
+                identityTwin.requiredTargetMastery.slice(0, 5).map((label, i) => (
+                  <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-slate-200">
+                    <span className="font-semibold">{label}</span>
+                    <Badge variant="blue">Required P0</Badge>
                   </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-indigo-500 h-full" style={{ width: `${s.targetLevel}%` }} />
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-xs text-slate-400 italic">All P0 critical topics completed!</p>
+              )}
             </div>
           </div>
         </TiltCard>

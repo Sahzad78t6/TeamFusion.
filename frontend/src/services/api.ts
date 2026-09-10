@@ -301,6 +301,19 @@ export async function getDashboardApi(token: string): Promise<any> {
   return await safeParseResponse(response, 'Failed to fetch dashboard summary.');
 }
 
+// Identity Twin API
+export async function getIdentityTwinApi(token: string): Promise<any> {
+  const response = await safeFetch(`${API_BASE_URL}/identity-twin`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return await safeParseResponse(response, 'Failed to fetch identity twin data.');
+}
+
 // Planner APIs
 export async function createPlanApi(token: string, goals: string[]): Promise<any> {
   const response = await safeFetch(`${API_BASE_URL}/planner`, {

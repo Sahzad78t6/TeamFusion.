@@ -5,6 +5,16 @@ from app.auth import get_current_user
 from app.curriculum_utils import get_current_topic
 from app.db import get_db
 from app.routers.recommendation import get_user_recommendations
+from app.services.analytics_engine import (
+    get_identity_score,
+    get_growth_score,
+    get_burnout_risk,
+    get_deep_learning_hours,
+    get_dimension_mastery,
+    get_active_focus,
+    get_key_skill_strengths,
+    get_required_target_mastery,
+)
 
 router = APIRouter(tags=["dashboard"])
 
@@ -86,14 +96,16 @@ async def compute_user_analytics(db, current_user: dict, progress: dict = None, 
             "hours": h_val,
         })
 
-    streak = current_user.get("streak", 0) or 0
-    growth_score = min(98, max(70, 70 + len(completed_topics) * 5))
-    weekly_hours_result = round(total_hours, 1) if total_hours > 0 else 14.0
+    streak = current_user.get("streak", 0) or current_user.get("current_streak", 0) or 0
+    growth_score = await get_growth_score(user_id, db)
+    deep_hours = await get_deep_learning_hours(user_id, db)
+    burnout = await get_burnout_risk(user_id, db)
 
     return {
         "growth_score": growth_score,
-        "weekly_hours_logged": weekly_hours_result,
-        "burnout_risk_score": 15,
+        "weekly_hours_logged": deep_hours,
+        "burnout_risk_score": burnout["risk_pct"],
+        "burnout_label": burnout["label"],
         "streak_days": streak,
         "radar_skills": radar_skills,
         "weekly_heatmap": weekly_heatmap,
@@ -115,9 +127,6 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
     sequence = curriculum.get("sequence", []) if curriculum else []
     completed_topics = progress.get("completed_topics", []) if progress else []
     skipped_codes = progress.get("skipped_topics", []) if progress else []
-
-    total_topics = len(sequence)
-    progress_percent = round((len(completed_topics) / total_topics) * 100) if total_topics > 0 else 0
 
     plan_label = curriculum.get("plan_label", "") if curriculum else ""
     phases_list = []
@@ -157,10 +166,21 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
 
     analytics_data = await compute_user_analytics(db, current_user, progress, sequence)
 
+    # Real calculated metrics
+    identity_score = await get_identity_score(user_id, db)
+    growth_score = await get_growth_score(user_id, db)
+    burnout = await get_burnout_risk(user_id, db)
+    deep_learning_hours = await get_deep_learning_hours(user_id, db)
+    drift_pct = 100 - identity_score
+
     return {
         "current_topic": current_topic_label,
-        "progress_percent": progress_percent,
-        "streak": current_user.get("streak", 0) or 0,
+        "progress_percent": identity_score,
+        "identity_score": identity_score,
+        "growth_score": growth_score,
+        "burnout": burnout,
+        "deep_learning_hours": deep_learning_hours,
+        "streak": current_user.get("streak", 0) or current_user.get("current_streak", 0) or 0,
         "goal": goal,
         "year": year,
         "plan_label": plan_label,
@@ -175,11 +195,15 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
             "display": f"Phase {phase_step} of {total_phases}: {current_phase.replace('Phase ' + str(phase_step) + ': ', '')}" if not is_completed else "Completed",
         },
         "skipped_topics": skipped_topics_list,
+        "today_tasks": {
+            "completed": 0 if not is_completed else 1,
+            "total": 1
+        },
         "identity_twin": {
             "target_role": current_user.get("target_role") or goal,
             "goal": goal,
-            "identity_score": 85,
-            "identity_drift_percentage": 12,
+            "identity_score": identity_score,
+            "identity_drift_percentage": drift_pct,
         },
         "analytics": analytics_data,
         "roadmap": {
@@ -197,6 +221,33 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         "recommendations": resources[:4],
     }
 
+@router.get("/identity-twin", status_code=status.HTTP_200_OK)
+async def get_identity_twin_endpoint(current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    user_id = str(current_user["_id"])
+    progress = await db["user_progress"].find_one({"user_id": user_id}) or {}
+
+    identity_score = await get_identity_score(user_id, db)
+    dimension_mastery = await get_dimension_mastery(user_id, db)
+    active_focus = await get_active_focus(user_id, db)
+    key_skill_strengths = await get_key_skill_strengths(user_id, db)
+    required_target_mastery = await get_required_target_mastery(user_id, db)
+
+    goal = progress.get("goal") or current_user.get("goal") or "software_engineering"
+    target_role = progress.get("target_role") or current_user.get("target_role") or goal
+    drift_pct = 100 - identity_score
+
+    return {
+        "identity_score": identity_score,
+        "dimension_mastery": dimension_mastery,
+        "active_focus": active_focus,
+        "key_skill_strengths": key_skill_strengths,
+        "required_target_mastery": required_target_mastery,
+        "target_role": target_role,
+        "goal": goal,
+        "drift_pct": drift_pct,
+    }
+
 @router.get("/analytics", status_code=status.HTTP_200_OK)
 async def get_analytics(current_user: dict = Depends(get_current_user)):
     db = get_db()
@@ -209,3 +260,4 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
     sequence = curriculum.get("sequence", []) if curriculum else []
 
     return await compute_user_analytics(db, current_user, progress, sequence)
+

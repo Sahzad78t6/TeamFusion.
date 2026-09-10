@@ -8,6 +8,8 @@ interface IdentityHologramProps {
   driftScore: number;
   currentArchetype: string;
   dreamArchetype: string;
+  dimensionMastery?: { dimension: string; mastery_pct: number; completed?: number; total?: number }[];
+  activeFocus?: { dimension: string; label: string; target_mastery: number };
 }
 
 export const IdentityHologram: React.FC<IdentityHologramProps> = ({
@@ -15,17 +17,24 @@ export const IdentityHologram: React.FC<IdentityHologramProps> = ({
   driftScore,
   currentArchetype,
   dreamArchetype,
+  dimensionMastery,
+  activeFocus,
 }) => {
-  const [activeNode, setActiveNode] = useState<string | null>('AI Architecture');
+  const colors = ['#8b5cf6', '#38bdf8', '#ec4899', '#6366f1', '#10b981', '#f59e0b'];
 
-  const nodes = [
-    { label: 'AI Architecture', score: 90, angle: 0, color: '#8b5cf6' },
-    { label: 'Product Vision', score: 72, angle: 60, color: '#38bdf8' },
-    { label: 'Public Speaking', score: 60, angle: 120, color: '#ec4899' },
-    { label: 'System Design', score: 85, angle: 180, color: '#6366f1' },
-    { label: 'Cognitive Recovery', score: 88, angle: 240, color: '#10b981' },
-    { label: 'Venture Capital', score: 50, angle: 300, color: '#f59e0b' },
-  ];
+  const nodes = (dimensionMastery && dimensionMastery.length > 0)
+    ? dimensionMastery.map((item, idx) => ({
+        label: item.dimension,
+        score: item.mastery_pct,
+        angle: (idx * 360) / dimensionMastery.length,
+        color: colors[idx % colors.length],
+      }))
+    : [
+        { label: 'Curriculum', score: alignmentScore, angle: 0, color: '#8b5cf6' },
+      ];
+
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const activeNodeLabel = selectedNode || nodes[0]?.label || 'Curriculum Focus';
 
   return (
     <div className="relative w-full h-[420px] rounded-3xl bg-gradient-to-br from-purple-950/40 via-[#0c0e17] to-black border border-purple-500/30 p-6 flex flex-col justify-between overflow-hidden shadow-2xl shadow-purple-950/50 backdrop-blur-2xl group">
@@ -85,24 +94,25 @@ export const IdentityHologram: React.FC<IdentityHologramProps> = ({
           const x = Math.cos(rad) * radius;
           const y = Math.sin(rad) * radius;
 
-          const isSelected = activeNode === node.label;
+          const isSelected = activeNodeLabel === node.label;
 
           return (
             <motion.button
               key={i}
-              onClick={() => setActiveNode(node.label)}
+              onClick={() => setSelectedNode(node.label)}
               whileHover={{ scale: 1.2 }}
               style={{
                 transform: `translate(${x}px, ${y}px)`,
               }}
-              className={`absolute w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold border transition-all shadow-lg backdrop-blur-md cursor-pointer ${
+              title={`${node.label}: ${node.score}% Mastery`}
+              className={`absolute px-2 py-1 rounded-xl flex items-center justify-center text-xs font-bold border transition-all shadow-lg backdrop-blur-md cursor-pointer ${
                 isSelected
                   ? 'bg-purple-600 text-white border-purple-300 shadow-purple-500/50 z-20 scale-110'
                   : 'bg-[#12141d]/80 text-slate-300 border-white/10 hover:border-purple-400'
               }`}
             >
               <div
-                className="w-2.5 h-2.5 rounded-full mr-1"
+                className="w-2 h-2 rounded-full mr-1 shrink-0"
                 style={{ backgroundColor: node.color }}
               />
               <span className="text-[9px]">{node.score}%</span>
@@ -114,10 +124,19 @@ export const IdentityHologram: React.FC<IdentityHologramProps> = ({
       {/* Bottom Live Selected Readout Bar */}
       <div className="relative z-10 p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between text-xs text-slate-300 backdrop-blur-md">
         <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-purple-400" />
-          <span>Active Focus Dimension: <strong className="text-white">{activeNode || 'AI Architecture'}</strong></span>
+          <Activity className="w-4 h-4 text-purple-400 shrink-0" />
+          <span>
+            Active Focus Dimension:{' '}
+            <strong className="text-white">
+              {activeFocus?.dimension
+                ? `${activeFocus.dimension} (${activeFocus.label})`
+                : activeNodeLabel}
+            </strong>
+          </span>
         </div>
-        <span className="text-[10px] text-slate-400 font-mono">Target: 98% Mastery</span>
+        <span className="text-[10px] text-slate-400 font-mono">
+          Target: {activeFocus?.target_mastery ?? 80}% Mastery
+        </span>
       </div>
     </div>
   );

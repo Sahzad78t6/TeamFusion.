@@ -17,6 +17,7 @@ import {
   claimAuthTicketApi,
   submitOnboardingApi,
   getDashboardApi,
+  getIdentityTwinApi,
   getAnalyticsApi,
   toggleTaskApi,
   createReflectionApi,
@@ -165,20 +166,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (data.plan_label) setCurriculumPlan(data.plan_label);
       if (data.phase_info) setPhaseInfo(data.phase_info);
       if (data.skipped_topics) setSkippedTopics(data.skipped_topics);
+      
+      if (typeof data.identity_score === 'number') {
+        setUser((prev) => ({
+          ...prev,
+          identityScore: data.identity_score,
+          growthScore: data.growth_score ?? prev.growthScore,
+        }));
+      }
+
       if (data.identity_twin) {
         setIdentityTwin((prev) => ({
           ...prev,
           dreamArchetype: data.identity_twin.target_role || data.identity_twin.goal || prev.dreamArchetype,
-          alignmentPercentage: Math.round(data.identity_twin.identity_score || prev.alignmentPercentage),
-          driftScore: Math.round(data.identity_twin.identity_drift_percentage || prev.driftScore),
+          alignmentPercentage: Math.round(data.identity_twin.identity_score ?? prev.alignmentPercentage),
+          driftScore: Math.round(data.identity_twin.identity_drift_percentage ?? (100 - (data.identity_twin.identity_score ?? 0))),
         }));
       }
       if (data.analytics) {
         setAnalytics((prev) => ({
           ...prev,
           growthPredictionScore: Math.round(data.analytics.growth_score ?? prev.growthPredictionScore),
-          learningHoursTotal: data.analytics.weekly_hours_logged ?? prev.learningHoursTotal,
-          burnoutRiskPercentage: Math.round(data.analytics.burnout_risk_score ?? prev.burnoutRiskPercentage),
+          learningHoursTotal: data.deep_learning_hours ?? data.analytics.weekly_hours_logged ?? prev.learningHoursTotal,
+          burnoutRiskPercentage: Math.round(data.burnout?.risk_pct ?? data.analytics.burnout_risk_score ?? prev.burnoutRiskPercentage),
           consistencyRate: Math.min(98, Math.round(data.analytics.streak_days ? data.analytics.streak_days * 3.5 : prev.consistencyRate)),
           radarSkills: Array.isArray(data.analytics.radar_skills) && data.analytics.radar_skills.length > 0
             ? data.analytics.radar_skills.map((s: any) => ({
@@ -195,6 +205,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               }))
             : prev.weeklyHeatmap,
         }));
+      }
+
+      // Fetch Identity Twin API
+      try {
+        const twinData = await getIdentityTwinApi(authToken);
+        if (twinData) {
+          setIdentityTwin((prev) => ({
+            ...prev,
+            alignmentPercentage: twinData.identity_score ?? prev.alignmentPercentage,
+            driftScore: twinData.drift_pct ?? (100 - (twinData.identity_score ?? 0)),
+            dreamArchetype: twinData.target_role || prev.dreamArchetype,
+            dimensionMastery: twinData.dimension_mastery || [],
+            activeFocus: twinData.active_focus,
+            keySkillStrengths: twinData.key_skill_strengths || [],
+            requiredTargetMastery: twinData.required_target_mastery || [],
+          }));
+        }
+      } catch (err) {
+        // Suppress
       }
       if (data.roadmap && data.roadmap.tasks) {
         setTasks(

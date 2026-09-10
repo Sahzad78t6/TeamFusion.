@@ -78,7 +78,7 @@ export const Dashboard: React.FC = () => {
               Welcome back, {user.name} 👋
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-              Target Role: <strong className="text-white">{user.dreamRole}</strong>. Identity drift reduced by 12% this week.
+              Target Role: <strong className="text-white">{identityTwin.dreamArchetype || user.dreamRole}</strong>. Identity Drift: <strong className="text-cyan-400">{identityTwin.driftScore}%</strong>.
             </p>
           </div>
 
@@ -166,10 +166,9 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-white">{user.identityScore}</span>
-            <span className="text-xs font-bold text-emerald-400 flex items-center">+4% this week</span>
+            <span className="text-3xl font-extrabold text-white">{identityTwin.alignmentPercentage}%</span>
           </div>
-          <p className="text-[11px] text-slate-400">{identityTwin.currentArchetype} → {identityTwin.dreamArchetype}</p>
+          <p className="text-[11px] text-slate-400">Target: {identityTwin.dreamArchetype || user.dreamRole}</p>
         </div>
 
         {/* Card 2: Growth Score */}
@@ -182,9 +181,8 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-white">{user.growthScore}</span>
-            <span className="text-xs font-bold text-emerald-400">+14% MoM</span>
           </div>
-          <p className="text-[11px] text-slate-400">148 total deep learning hours logged.</p>
+          <p className="text-[11px] text-slate-400">~{analytics.learningHoursTotal || 0} hrs (estimated) deep learning</p>
         </div>
 
         {/* Card 3: Burnout Risk Gauge */}
@@ -197,9 +195,13 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-emerald-400">{analytics.burnoutRiskPercentage}%</span>
-            <span className="text-xs font-bold text-emerald-300">Optimal (Low)</span>
+            <span className="text-xs font-bold text-emerald-300">
+              {analytics.burnoutRiskPercentage >= 70 ? 'High Risk' : analytics.burnoutRiskPercentage >= 15 ? 'Optimal (Low)' : 'Low Engagement'}
+            </span>
           </div>
-          <p className="text-[11px] text-slate-400">Rest windows schedule optimal performance.</p>
+          <p className="text-[11px] text-slate-400">
+            {analytics.burnoutRiskPercentage >= 70 ? 'High streak: schedule rest' : analytics.burnoutRiskPercentage >= 15 ? 'Optimal activity level' : 'Low recent activity'}
+          </p>
         </div>
 
         {/* Card 4: Daily Task Progress */}
@@ -232,14 +234,25 @@ export const Dashboard: React.FC = () => {
                   <TrendingUp className="w-4 h-4 text-purple-400" />
                   Growth Prediction & Learning Velocity
                 </h3>
-                <p className="text-xs text-slate-400">Monthly trajectory towards Founder Archetype</p>
+                <p className="text-xs text-slate-400">Activity & progression metric derived from active streak & tasks</p>
               </div>
-              <Badge variant="purple">94% Growth Projection</Badge>
+              <Badge variant="purple">{user.growthScore}% Growth Score</Badge>
             </div>
 
             <div className="h-64 w-full pt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={analytics.monthlyProgress}>
+                <AreaChart
+                  data={
+                    analytics.weeklyHeatmap && analytics.weeklyHeatmap.length > 0
+                      ? analytics.weeklyHeatmap.map((h) => ({ month: h.day, score: Math.round(h.hours * 25) || user.growthScore }))
+                      : [
+                          { month: 'Mon', score: Math.max(10, user.growthScore - 15) },
+                          { month: 'Tue', score: Math.max(15, user.growthScore - 10) },
+                          { month: 'Wed', score: Math.max(20, user.growthScore - 5) },
+                          { month: 'Thu', score: user.growthScore },
+                        ]
+                  }
+                >
                   <defs>
                     <linearGradient id="scoreColor" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
