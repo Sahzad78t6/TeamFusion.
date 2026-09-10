@@ -49,6 +49,23 @@ export interface OnboardingPayload {
   language?: string;
   known_topics?: string[];
   institution_id?: string | null;
+  college_name?: string | null;
+}
+
+export interface CollegeSearchResult {
+  college: string;
+  university?: string;
+  state?: string;
+  district?: string;
+}
+
+export async function searchCollegesApi(query: string, limit: number = 8): Promise<CollegeSearchResult[]> {
+  if (!query || query.trim().length < 2) return [];
+  const response = await safeFetch(`${API_BASE_URL}/colleges/search?q=${encodeURIComponent(query.trim())}&limit=${limit}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<CollegeSearchResult[]>(response, 'Failed to search colleges.');
 }
 
 export async function getInstitutionsListApi(): Promise<{ id: string; name: string }[]> {

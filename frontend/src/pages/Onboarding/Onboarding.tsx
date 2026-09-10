@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, ArrowRight, ArrowLeft, Check, Target, GraduationCap, Building2, Loader2, BookCheck, FastForward, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { useApp } from '../../context/AppContext';
-import { getCurriculumTopicsApi, getInstitutionsListApi, CurriculumTopicItem } from '../../services/api';
+import { getCurriculumTopicsApi, getInstitutionsListApi, searchCollegesApi, CurriculumTopicItem, CollegeSearchResult } from '../../services/api';
 
 const GOAL_OPTIONS: [string, string][] = [
   ['software_engineering', 'Software Engineering'],
@@ -43,11 +43,44 @@ export const Onboarding: React.FC = () => {
   const [institutions, setInstitutions] = useState<{ id: string; name: string }[]>([]);
   const [isLoadingInsts, setIsLoadingInsts] = useState<boolean>(false);
 
+  // Typeahead college search state
+  const [collegeSearchQuery, setCollegeSearchQuery] = useState<string>('');
+  const [collegeSearchResults, setCollegeSearchResults] = useState<CollegeSearchResult[]>([]);
+  const [isSearchingColleges, setIsSearchingColleges] = useState<boolean>(false);
+  const [selectedCollegeObj, setSelectedCollegeObj] = useState<CollegeSearchResult | null>(null);
+  const [showCollegeDropdown, setShowCollegeDropdown] = useState<boolean>(false);
+
   // Curriculum topics for Step 3
   const [topics, setTopics] = useState<CurriculumTopicItem[]>([]);
   const [isLoadingTopics, setIsLoadingTopics] = useState<boolean>(false);
 
   const totalSteps = 4;
+
+  // Debounced college autocomplete lookup (~300ms)
+  useEffect(() => {
+    if (!collegeSearchQuery || collegeSearchQuery.trim().length < 2) {
+      setCollegeSearchResults([]);
+      setIsSearchingColleges(false);
+      return;
+    }
+
+    setIsSearchingColleges(true);
+    const handler = setTimeout(() => {
+      searchCollegesApi(collegeSearchQuery)
+        .then((res) => {
+          setCollegeSearchResults(res || []);
+        })
+        .catch((err) => {
+          console.warn('College search failed:', err);
+          setCollegeSearchResults([]);
+        })
+        .finally(() => {
+          setIsSearchingColleges(false);
+        });
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [collegeSearchQuery]);
 
   // Fetch topics for Step 3
   useEffect(() => {
@@ -101,7 +134,9 @@ export const Onboarding: React.FC = () => {
       setIsSubmitting(true);
       setErrorMsg('');
       const selectedInst = institutions.find((i) => i.id === institutionId);
-      const collegeLabel = selectedInst ? selectedInst.name : customCollegeName || 'Independent';
+      const collegeLabel = selectedInst
+        ? selectedInst.name
+        : collegeSearchQuery.trim() || customCollegeName.trim() || 'Independent';
 
       try {
         await submitOnboarding({
@@ -117,6 +152,7 @@ export const Onboarding: React.FC = () => {
           language: 'English',
           known_topics: knownTopics,
           institution_id: institutionId,
+          college_name: collegeLabel,
         });
         navigate('/dashboard');
       } catch (err: any) {
@@ -356,72 +392,130 @@ export const Onboarding: React.FC = () => {
                   Step 4 — Institution Selection
                 </span>
                 <h3 className="text-xl font-bold text-white">Which college?</h3>
-                <p className="text-xs text-slate-400">Select your registered university/college to access peer cohorts and institution assessments.</p>
+                <p className="text-xs text-slate-400">Search and select your university or college to link your identity twin.</p>
               </div>
 
               <div className="space-y-4">
+                {/* Typeahead Input Box */}
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <Building2 className="w-5 h-5 text-cyan-400" />
                   </div>
-                  {isLoadingInsts ? (
-                    <div className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-slate-400 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={collegeSearchQuery}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCollegeSearchQuery(val);
+                      setCustomCollegeName(val);
+                      setSelectedCollegeObj(null);
+                      setShowCollegeDropdown(true);
+                      setInstitutionId(null);
+                    }}
+                    onFocus={() => setShowCollegeDropdown(true)}
+                    placeholder="Type your college name (e.g. Vignan, IIT, Anna...)"
+                    className="w-full pl-12 pr-10 py-4 rounded-xl bg-[#181b28] border border-white/15 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 text-sm text-white placeholder-slate-500 transition-all"
+                  />
+                  {isSearchingColleges && (
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                       <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                      <span className="text-xs">Loading registered institutions...</span>
                     </div>
-                  ) : (
+                  )}
+
+                  {/* Autocomplete Dropdown List */}
+                  {showCollegeDropdown && collegeSearchResults.length > 0 && (
+                    <div className="absolute z-50 left-0 right-0 mt-2 bg-[#12141d]/95 border border-white/15 rounded-2xl shadow-2xl overflow-hidden max-h-64 overflow-y-auto custom-scrollbar backdrop-blur-xl">
+                      {collegeSearchResults.map((item, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setCollegeSearchQuery(item.college);
+                            setCustomCollegeName(item.college);
+                            setSelectedCollegeObj(item);
+                            setShowCollegeDropdown(false);
+                          }}
+                          className="p-3.5 hover:bg-white/10 cursor-pointer border-b border-white/5 last:border-0 transition-colors flex items-start justify-between gap-3"
+                        >
+                          <div>
+                            <p className="text-xs font-semibold text-white leading-snug">{item.college}</p>
+                            {(item.district || item.state) && (
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                {[item.district, item.state].filter(Boolean).join(', ')}
+                                {item.university ? ` • ${item.university}` : ''}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-cyan-400 font-medium px-2 py-0.5 bg-cyan-500/10 rounded-full border border-cyan-500/20 shrink-0">
+                            Select
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected College Badge */}
+                {selectedCollegeObj && (
+                  <div className="p-3.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span className="font-semibold">{selectedCollegeObj.college}</span>
+                      {(selectedCollegeObj.district || selectedCollegeObj.state) && (
+                        <span className="text-cyan-400/70">
+                          ({[selectedCollegeObj.district, selectedCollegeObj.state].filter(Boolean).join(', ')})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Registered Admin Institutions Dropdown (Optional Link) */}
+                {institutions.length > 0 && (
+                  <div className="pt-2">
+                    <label className="text-[11px] font-semibold text-slate-400 mb-1.5 block">
+                      Or select a registered Institution Admin portal:
+                    </label>
                     <select
-                      value={institutionId || 'NOT_LISTED'}
+                      value={institutionId || ''}
                       onChange={(e) => {
                         const val = e.target.value;
-                        if (val === 'NOT_LISTED') {
-                          setInstitutionId(null);
-                        } else {
+                        if (val) {
                           setInstitutionId(val);
+                          const inst = institutions.find((i) => i.id === val);
+                          if (inst) {
+                            setCollegeSearchQuery(inst.name);
+                            setCustomCollegeName(inst.name);
+                            setSelectedCollegeObj(null);
+                            setShowCollegeDropdown(false);
+                          }
+                        } else {
+                          setInstitutionId(null);
                         }
                       }}
-                      className="w-full pl-12 pr-4 py-4 rounded-xl bg-[#181b28] border border-white/15 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 text-sm text-white transition-all appearance-none cursor-pointer"
+                      className="w-full px-4 py-3 rounded-xl bg-[#181b28] border border-white/10 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 cursor-pointer"
                     >
-                      <option value="NOT_LISTED" className="bg-[#12141d] text-slate-300">
-                        -- Select Registered Institution --
+                      <option value="" className="bg-[#12141d] text-slate-400">
+                        -- Direct Admin Registered Institution (Optional) --
                       </option>
                       {institutions.map((inst) => (
                         <option key={inst.id} value={inst.id} className="bg-[#12141d] text-white">
                           {inst.name}
                         </option>
                       ))}
-                      <option value="NOT_LISTED" className="bg-[#12141d] text-purple-300 font-bold">
-                        My institution isn't listed
-                      </option>
                     </select>
-                  )}
-                </div>
-
-                {institutionId === null && (
-                  <div className="space-y-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
-                    <div className="flex items-start gap-2.5">
-                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <p className="font-semibold text-amber-300">Unregistered Institution Notice</p>
-                        <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                          Note: Unregistered institution accounts won't have access to institution-specific assessments or contests until linked. You can proceed as an independent learner.
-                        </p>
-                      </div>
-                    </div>
-                    <input
-                      type="text"
-                      value={customCollegeName}
-                      onChange={(e) => setCustomCollegeName(e.target.value)}
-                      placeholder="Optional: Enter college name string..."
-                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-                    />
                   </div>
                 )}
 
-                {institutionId !== null && (
-                  <div className="p-3 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs flex items-center gap-2">
-                    <Check className="w-4 h-4 text-cyan-400" />
-                    <span>Selected: {institutions.find((i) => i.id === institutionId)?.name}</span>
+                {/* Custom Typed Name Notice */}
+                {!selectedCollegeObj && !institutionId && collegeSearchQuery.trim().length >= 2 && (
+                  <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-200 text-xs flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-semibold text-purple-300">Custom College Name</p>
+                      <p className="text-[11px] text-purple-200/80 leading-relaxed">
+                        Entering "<strong>{collegeSearchQuery.trim()}</strong>". If an admin for this institution is registered, your account will be automatically linked on submission. Otherwise, you'll proceed as an independent learner.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

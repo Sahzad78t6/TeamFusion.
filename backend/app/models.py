@@ -55,6 +55,7 @@ class OnboardingRequest(BaseModel):
     language: Optional[str] = "English"
     known_topics: Optional[List[str]] = Field(default_factory=list)
     institution_id: Optional[str] = None
+    college_name: Optional[str] = None
 
 class IdentityResponse(BaseModel):
     goal: Optional[str] = None

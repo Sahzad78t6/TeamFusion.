@@ -15,24 +15,40 @@ async def submit_onboarding(
     db = get_db()
     user_id = current_user["_id"]
 
-    inst_name = ""
+    raw_college = payload.college_name or (payload.skills[0] if payload.skills and len(payload.skills) > 0 else "")
+    raw_college_clean = raw_college.strip()
+    submitted_norm = raw_college_clean.lower()
+
     inst_id = payload.institution_id
+    inst_doc = None
+
     if inst_id:
         try:
             inst_doc = await db["institutions"].find_one({"_id": ObjectId(inst_id)})
-            if inst_doc:
-                inst_name = inst_doc.get("name", "")
         except Exception:
-            pass
+            inst_doc = None
 
-    college_val = inst_name or (payload.skills[0] if payload.skills and len(payload.skills) > 0 else "")
+    if not inst_doc and submitted_norm:
+        # Check if institutions collection has a matching name (case-insensitive)
+        inst_doc = await db["institutions"].find_one({"$or": [
+            {"normalized_name": submitted_norm},
+            {"name": {"$regex": f"^{re.escape(raw_college_clean)}$", "$options": "i"}}
+        ]})
+
+    if inst_doc:
+        final_inst_id = str(inst_doc["_id"])
+        final_college_name = inst_doc.get("name", raw_college_clean)
+    else:
+        final_inst_id = None
+        final_college_name = raw_college_clean
 
     update_fields = {
         "goal": payload.goal,
         "year": payload.current_role,
-        "college": college_val,
-        "institution_name": college_val,
-        "institution_id": inst_id,
+        "college": final_college_name,
+        "college_display_name": final_college_name,
+        "institution_name": final_college_name,
+        "institution_id": final_inst_id,
         "onboarding_completed": True,
     }
 
