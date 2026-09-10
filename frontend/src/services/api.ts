@@ -2,6 +2,8 @@ const IS_PROD = (import.meta as any).env?.PROD;
 const VITE_API_URL = (import.meta as any).env?.VITE_API_URL;
 const IS_DEV = typeof window !== 'undefined' && (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1'));
 
+import { LiveResourcesResponse } from '../types';
+
 // Clean and resolve base API URL. If not provided via environment, default based on runtime environment.
 export const API_BASE_URL = VITE_API_URL
   ? VITE_API_URL.replace(/\/api\/?$/, '').replace(/\/$/, '')
@@ -663,6 +665,14 @@ export async function subscribePushApi(token: string, subscription: any): Promis
     body: JSON.stringify(subscription),
   });
   return await safeParseResponse<{ status: string; user_id: string }>(response, 'Failed to subscribe to Web Push notifications.');
+}
+
+export async function getLiveResourcesApi(token: string, topicCode: string): Promise<LiveResourcesResponse> {
+  const response = await safeFetch(`${API_BASE_URL}/learning/resources/live?topic_code=${encodeURIComponent(topicCode)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<LiveResourcesResponse>(response, 'Failed to fetch live resources.');
 }
 
 

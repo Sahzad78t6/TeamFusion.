@@ -4,10 +4,10 @@ import { BookOpen, Bookmark, Heart, Star, Search, ExternalLink, Loader2, Sparkle
 import { useApp } from '../../context/AppContext';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
-import { getRecommendationsApi, refreshRecommendationsApi, getLearningVideosApi } from '../../services/api';
-import { VideoResult } from '../../types';
+import { getRecommendationsApi, refreshRecommendationsApi, getLearningVideosApi, getLiveResourcesApi } from '../../services/api';
+import { VideoResult, LiveResourcesResponse, ArticleResult, BookResult, PaperResult } from '../../types';
 import { VideoPlayerModal } from '../../components/VideoPlayerModal';
-import { Play, Youtube, AlertTriangle } from 'lucide-react';
+import { Play, Youtube, AlertTriangle, FileText, Library, GraduationCap, Globe, Calendar, UserCheck } from 'lucide-react';
 
 export const Learning: React.FC = () => {
   const { learningResources, setLearningResources, toggleBookmarkResource, toggleLikeResource, authToken, identityTwin } = useApp();
@@ -33,6 +33,12 @@ export const Learning: React.FC = () => {
   const [isLoadingVideos, setIsLoadingVideos] = useState<boolean>(false);
   const [videosError, setVideosError] = useState<string | null>(null);
   const [activeVideoModal, setActiveVideoModal] = useState<{ videoId: string; title: string } | null>(null);
+
+  // Live Resources State (Articles, Books, Papers)
+  const [liveResources, setLiveResources] = useState<LiveResourcesResponse>({ articles: [], books: [], papers: [] });
+  const [isLoadingLive, setIsLoadingLive] = useState<boolean>(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [activeTabRead, setActiveTabRead] = useState<'all' | 'articles' | 'books' | 'papers'>('all');
 
   const formatTimeAgo = (isoString?: string) => {
     if (!isoString) return 'Just now';
@@ -101,12 +107,13 @@ export const Learning: React.FC = () => {
     }
   }, [authToken, setLearningResources]);
 
-  // Fetch live YouTube videos when topic/dimension changes or on mount
+  // Fetch live YouTube videos and live reading resources when topic changes
   useEffect(() => {
     if (authToken) {
+      const activeTopicCode = dimension || primaryGap || 'dsa';
+
       setIsLoadingVideos(true);
       setVideosError(null);
-      const activeTopicCode = dimension || primaryGap || 'dsa';
       getLearningVideosApi(authToken, activeTopicCode)
         .then((res) => {
           if (res && Array.isArray(res.videos)) {
@@ -118,10 +125,31 @@ export const Learning: React.FC = () => {
         .catch((err) => {
           console.warn('Live YouTube search failed/degraded:', err);
           setLiveVideos([]);
-          setVideosError("Couldn't load live video recommendations at this time.");
+          setVideosError("Couldn't load live video recommendations right now.");
         })
         .finally(() => {
           setIsLoadingVideos(false);
+        });
+
+      setIsLoadingLive(true);
+      setLiveError(null);
+      getLiveResourcesApi(authToken, activeTopicCode)
+        .then((res) => {
+          if (res) {
+            setLiveResources({
+              articles: res.articles || [],
+              books: res.books || [],
+              papers: res.papers || [],
+            });
+          }
+        })
+        .catch((err) => {
+          console.warn('Live reading resources search failed:', err);
+          setLiveResources({ articles: [], books: [], papers: [] });
+          setLiveError("Couldn't load live reading resources right now.");
+        })
+        .finally(() => {
+          setIsLoadingLive(false);
         });
     }
   }, [authToken, dimension, primaryGap]);
@@ -406,6 +434,262 @@ export const Learning: React.FC = () => {
                 </div>
               </motion.div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Read Now — Live Articles, Books & Papers Section */}
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                Read Now — Live Articles, Books & Papers
+                {(liveResources.articles.length > 0 || liveResources.books.length > 0 || liveResources.papers.length > 0) && (
+                  <Badge variant="cyan">
+                    {liveResources.articles.length + liveResources.books.length + liveResources.papers.length} Live Results
+                  </Badge>
+                )}
+              </h2>
+              <p className="text-[11px] text-slate-400">
+                Scraped live from DuckDuckGo, Open Library & arXiv. Click to read externally in a new tab.
+              </p>
+            </div>
+          </div>
+
+          {/* Sub-tabs for reading section */}
+          <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10 text-xs">
+            {(
+              [
+                { id: 'all', label: 'All', count: liveResources.articles.length + liveResources.books.length + liveResources.papers.length },
+                { id: 'articles', label: 'Articles', count: liveResources.articles.length },
+                { id: 'books', label: 'Books', count: liveResources.books.length },
+                { id: 'papers', label: 'Papers', count: liveResources.papers.length },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTabRead(tab.id)}
+                className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+                  activeTabRead === tab.id
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/40 text-slate-400 border border-white/5">
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {isLoadingLive ? (
+          <div className="flex items-center justify-center p-8 glass-panel rounded-2xl border border-white/10 text-slate-400 text-xs gap-3">
+            <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+            <span>Fetching live articles, books & arXiv papers for {dimension || primaryGap || 'topic'}...</span>
+          </div>
+        ) : liveError ? (
+          <div className="flex items-center gap-2 p-4 glass-panel rounded-2xl border border-amber-500/20 bg-amber-500/5 text-amber-300 text-xs">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>{liveError} Static curriculum resources are ready below.</span>
+          </div>
+        ) : liveResources.articles.length === 0 && liveResources.books.length === 0 && liveResources.papers.length === 0 ? (
+          <div className="p-4 glass-panel rounded-2xl border border-amber-500/20 bg-amber-500/5 text-amber-300 text-xs flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>Couldn't load live articles, books, or papers right now. Static curriculum resources are ready below.</span>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* ARTICLES GROUP */}
+            {(activeTabRead === 'all' || activeTabRead === 'articles') && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Articles & Tutorials ({liveResources.articles.length})</span>
+                </div>
+                {liveResources.articles.length === 0 ? (
+                  <div className="p-3 glass-panel rounded-xl border border-white/5 text-slate-400 text-xs italic">
+                    Couldn't load live articles right now. Static curriculum resources are ready below.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {liveResources.articles.map((art, idx) => (
+                      <motion.a
+                        key={`art-${idx}`}
+                        href={art.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        whileHover={{ y: -3 }}
+                        className="group glass-panel rounded-2xl p-4 border border-white/10 flex flex-col justify-between hover:border-cyan-500/40 transition-all duration-300 bg-[#0c0e17]/80 cursor-pointer"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-[10px] font-medium truncate max-w-[180px]">
+                              <Globe className="w-3 h-3 text-cyan-400 shrink-0" />
+                              {art.source || 'Web Resource'}
+                            </span>
+                            <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+                          </div>
+                          <h3 className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors line-clamp-2 leading-snug">
+                            {art.title}
+                          </h3>
+                          <p className="text-[11px] text-slate-400 line-clamp-3 leading-relaxed">
+                            {art.snippet}
+                          </p>
+                        </div>
+                        <div className="pt-3 mt-3 border-t border-white/5 flex items-center justify-between text-[10px] text-cyan-400 font-semibold">
+                          <span>Read Full Article</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </div>
+                      </motion.a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* BOOKS GROUP */}
+            {(activeTabRead === 'all' || activeTabRead === 'books') && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  <Library className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Books & Publications ({liveResources.books.length})</span>
+                </div>
+                {liveResources.books.length === 0 ? (
+                  <div className="p-3 glass-panel rounded-xl border border-white/5 text-slate-400 text-xs italic">
+                    Couldn't load live books right now. Static curriculum resources are ready below.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {liveResources.books.map((book, idx) => (
+                      <motion.a
+                        key={`book-${idx}`}
+                        href={book.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        whileHover={{ y: -3 }}
+                        className="group glass-panel rounded-2xl p-4 border border-white/10 flex gap-3.5 items-start hover:border-amber-500/40 transition-all duration-300 bg-[#0c0e17]/80 cursor-pointer"
+                      >
+                        {book.cover_url ? (
+                          <img
+                            src={book.cover_url}
+                            alt={book.title}
+                            className="w-16 h-22 object-cover rounded-lg border border-white/10 shrink-0 shadow-md group-hover:scale-105 transition-transform"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                              const fallback = (e.target as HTMLElement).nextElementSibling;
+                              if (fallback) fallback.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className={`w-16 h-22 rounded-lg bg-amber-500/10 border border-amber-500/20 flex flex-col items-center justify-center text-amber-400 shrink-0 p-2 text-center ${
+                            book.cover_url ? 'hidden' : ''
+                          }`}
+                        >
+                          <BookOpen className="w-6 h-6 mb-1" />
+                          <span className="text-[9px] font-bold line-clamp-2 text-amber-300">Open Library</span>
+                        </div>
+
+                        <div className="flex-1 flex flex-col justify-between self-stretch space-y-1.5 min-w-0">
+                          <div>
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                                Book
+                              </span>
+                              {book.year && (
+                                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-slate-500" />
+                                  {book.year}
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2 leading-snug mt-1.5">
+                              {book.title}
+                            </h3>
+                            <p className="text-[11px] text-slate-400 truncate mt-1">
+                              by {book.author || 'Unknown Author'}
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-amber-400 font-semibold pt-2 border-t border-white/5">
+                            <span>Open Library</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </div>
+                        </div>
+                      </motion.a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PAPERS GROUP */}
+            {(activeTabRead === 'all' || activeTabRead === 'papers') && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Research Papers (arXiv) ({liveResources.papers.length})</span>
+                </div>
+                {liveResources.papers.length === 0 ? (
+                  <div className="p-3 glass-panel rounded-xl border border-white/5 text-slate-400 text-xs italic">
+                    Couldn't load live research papers right now. Static curriculum resources are ready below.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {liveResources.papers.map((paper, idx) => {
+                      const displayAuthors =
+                        paper.authors && paper.authors.length > 0
+                          ? paper.authors.slice(0, 2).join(', ') + (paper.authors.length > 2 ? ` +${paper.authors.length - 2} more` : '')
+                          : 'arXiv Research';
+                      const pubDate = paper.published ? paper.published.split('T')[0] : null;
+
+                      return (
+                        <motion.a
+                          key={`paper-${idx}`}
+                          href={paper.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          whileHover={{ y: -3 }}
+                          className="group glass-panel rounded-2xl p-4 border border-white/10 flex flex-col justify-between hover:border-purple-500/40 transition-all duration-300 bg-[#0c0e17]/80 cursor-pointer"
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] font-medium">
+                                <GraduationCap className="w-3 h-3 text-purple-400" />
+                                arXiv Paper
+                              </span>
+                              {pubDate && (
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {pubDate}
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="text-xs font-bold text-white group-hover:text-purple-300 transition-colors line-clamp-2 leading-snug">
+                              {paper.title}
+                            </h3>
+                            <p className="text-[10px] text-purple-300/80 font-medium truncate">
+                              Authors: {displayAuthors}
+                            </p>
+                            <p className="text-[11px] text-slate-400 line-clamp-3 leading-relaxed">
+                              {paper.summary}
+                            </p>
+                          </div>
+                          <div className="pt-3 mt-3 border-t border-white/5 flex items-center justify-between text-[10px] text-purple-400 font-semibold">
+                            <span>Read arXiv Paper</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </div>
+                        </motion.a>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

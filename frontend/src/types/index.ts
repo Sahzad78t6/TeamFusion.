@@ -168,3 +168,32 @@ export interface VideoResult {
   url: string;
 }
 
+export interface ArticleResult {
+  title: string;
+  url: string;
+  snippet: string;
+  source: string;
+}
+
+export interface BookResult {
+  title: string;
+  author: string;
+  cover_url: string | null;
+  link: string;
+  year?: number | null;
+}
+
+export interface PaperResult {
+  title: string;
+  authors: string[];
+  summary: string;
+  link: string;
+  published: string;
+}
+
+export interface LiveResourcesResponse {
+  articles: ArticleResult[];
+  books: BookResult[];
+  papers: PaperResult[];
+}
+
