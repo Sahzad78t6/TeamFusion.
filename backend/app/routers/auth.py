@@ -238,11 +238,7 @@ async def google_callback(
 
     access_tok = create_access_token(str(user_doc["_id"]))
 
-    if "localhost" in settings.GOOGLE_REDIRECT_URI or "127.0.0.1" in settings.GOOGLE_REDIRECT_URI:
-        frontend_base = "http://localhost:5173"
-    else:
-        frontend_base = settings.FRONTEND_URL.rstrip("/")
-
+    frontend_base = settings.FRONTEND_URL.rstrip("/")
     redirect_url = f"{frontend_base}/auth/callback?token={access_tok}&refresh={refresh_tok}"
     return RedirectResponse(url=redirect_url)
 

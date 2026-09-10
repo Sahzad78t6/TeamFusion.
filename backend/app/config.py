@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     VAPID_PUBLIC_KEY: str = "BBIgGLeN-l8pOPbiWlHPBR2k6D7gFDny6jKI7LI2x3rgd7Zj6BtRj8Lp-piCncCY9pu-upmRS07erb3SDdM01I0"
     VAPID_PRIVATE_KEY: str = "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg7goEN5PtbvHJ9DTq\nDApyJ0ecU/pZ1VcRVrr94ojZSFShRANCAAQSIBi3jfpfKTj24lpRzwUdpOg+4BQ5\n8uoyiOyyNsd64He2Y+gbUY/C6fqYgp3AmPabvrqZkUtO3q290g3TNNSN\n-----END PRIVATE KEY-----"
     VAPID_CLAIMS_EMAIL: str = "mailto:admin@growthos.com"
-    FRONTEND_URL: str = "http://localhost:5173"
+    FRONTEND_URL: str = "https://team-fusion-ipx2.vercel.app"
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
