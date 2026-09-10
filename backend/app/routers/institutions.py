@@ -187,6 +187,28 @@ async def create_assessment(
         "created_at": created_at,
     }
 
+@router.get("/content-status")
+async def get_institution_content_status(
+    current_user: dict = Depends(get_current_user),
+):
+    db = get_db()
+    user_inst = current_user.get("institution_id")
+    if not user_inst:
+        return {"has_content": False, "has_assessments": False, "has_contests": False}
+
+    assessment_count = await db["assessments"].count_documents({"institution_id": user_inst})
+    contest_count = await db["contest_sessions"].count_documents({"institution_id": user_inst})
+
+    has_assessments = assessment_count > 0
+    has_contests = contest_count > 0
+    has_content = has_assessments or has_contests
+
+    return {
+        "has_content": has_content,
+        "has_assessments": has_assessments,
+        "has_contests": has_contests,
+    }
+
 @router.get("/assessments")
 async def get_assessments(
     current_user: dict = Depends(get_current_user),
@@ -197,42 +219,52 @@ async def get_assessments(
         return []
 
     now_dt = datetime.now(timezone.utc)
+    user_id_str = str(current_user["_id"])
 
-    # Fetch assessments assigned to this institution
-    assessments_cursor = db["assessments"].find({"institution_id": user_inst})
-    assessments_list = await assessments_cursor.to_list(100)
+    assessments_cursor = db["assessments"].find({"institution_id": user_inst}).sort("created_at", -1)
+    assessments_list = await assessments_cursor.to_list(500)
 
     result = []
     for a in assessments_list:
-        # Check start_time <= now <= end_time
+        status_str = "past"
+        st = None
+        et = None
         try:
             st = datetime.fromisoformat(a["start_time"].replace("Z", "+00:00"))
             et = datetime.fromisoformat(a["end_time"].replace("Z", "+00:00"))
-            if not (st <= now_dt <= et):
-                continue
+            if now_dt < st:
+                status_str = "upcoming"
+            elif now_dt > et:
+                status_str = "past"
+            else:
+                status_str = "live"
         except Exception:
             pass
 
-        # Resolve questions from quiz_bank
-        q_ids = a.get("question_ids", [])
-        raw_questions = await db["quiz_bank"].find({"_id": {"$in": q_ids}}).to_list(len(q_ids))
+        sub = await db["submissions"].find_one({"assessment_id": str(a["_id"]), "user_id": user_id_str})
+        my_score = sub.get("score") if sub else None
 
-        # Never include correct_option in student response
         resolved_questions = []
-        for q in raw_questions:
-            resolved_questions.append({
-                "id": str(q["_id"]),
-                "prompt": q["prompt"],
-                "options": q["options"],
-            })
+        if status_str == "live" or sub is not None:
+            q_ids = a.get("question_ids", [])
+            raw_questions = await db["quiz_bank"].find({"_id": {"$in": q_ids}}).to_list(len(q_ids))
+            for q in raw_questions:
+                resolved_questions.append({
+                    "id": str(q["_id"]),
+                    "prompt": q["prompt"],
+                    "options": q["options"],
+                })
 
         result.append({
             "id": str(a["_id"]),
-            "title": a["title"],
+            "title": a.get("title", ""),
             "description": a.get("description", ""),
             "skill": a.get("skill", ""),
             "duration_minutes": a.get("duration_minutes"),
-            "end_time": a.get("end_time"),
+            "start_time": a.get("start_time", ""),
+            "end_time": a.get("end_time", ""),
+            "status": status_str,
+            "my_score": my_score,
             "questions": resolved_questions,
         })
 

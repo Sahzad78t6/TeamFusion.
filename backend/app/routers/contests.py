@@ -162,64 +162,107 @@ async def create_contest_session(
         "created_at": session_doc["created_at"].isoformat(),
     }
 
-# GET /contests/active (Student)
-@router.get("/contests/active")
-async def get_active_contest(
+# GET /contests (Student - list all contests with status, my_score, sample_test_cases)
+@router.get("/contests")
+async def get_contests(
     current_user: dict = Depends(get_current_user),
 ):
     db = get_db()
     user_inst = current_user.get("institution_id")
     if not user_inst:
-        return None
+        return []
 
     now = datetime.now(timezone.utc)
+    user_obj_id = ObjectId(current_user["_id"])
 
     sessions = await db["contest_sessions"].find(
         {"institution_id": user_inst}
-    ).sort("created_at", -1).to_list(50)
+    ).sort("created_at", -1).to_list(500)
 
-    active_session = None
+    result = []
     for s in sessions:
+        status_str = "past"
+        s_start_dt = None
+        s_end_dt = None
         try:
-            s_start = _parse_datetime(s.get("start_time"))
-            s_end = _parse_datetime(s.get("end_time"))
-            if s_start <= now <= s_end:
-                active_session = s
-                break
+            s_start_dt = _parse_datetime(s.get("start_time"))
+            s_end_dt = _parse_datetime(s.get("end_time"))
+            if now < s_start_dt:
+                status_str = "upcoming"
+            elif now > s_end_dt:
+                status_str = "past"
+            else:
+                status_str = "live"
         except Exception:
-            continue
+            pass
 
-    if not active_session:
-        return None
+        subs = await db["code_submissions"].find({
+            "contest_id": s["_id"],
+            "user_id": user_obj_id
+        }).to_list(500)
 
-    q_docs = await db["coding_bank"].find(
-        {"_id": {"$in": active_session.get("question_ids", [])}}
-    ).to_list(100)
+        my_score = None
+        if subs:
+            passed_q_ids = {str(sb["question_id"]) for sb in subs if sb.get("passed")}
+            total_qs = len(s.get("question_ids", [])) or 1
+            my_score = round((len(passed_q_ids) / total_qs) * 100.0, 1)
 
-    q_map = {str(q["_id"]): q for q in q_docs}
-    formatted_questions = []
-    for qid in active_session.get("question_ids", []):
-        q = q_map.get(str(qid))
-        if q:
-            formatted_questions.append({
-                "id": str(q["_id"]),
-                "title": q.get("title", ""),
-                "description": q.get("description", ""),
-                "difficulty": q.get("difficulty", "Easy"),
-                "starter_code": q.get("starter_code", ""),
-            })
+        q_ids = s.get("question_ids", [])
+        q_docs = await db["coding_bank"].find({"_id": {"$in": q_ids}}).to_list(len(q_ids))
+        q_map = {str(q["_id"]): q for q in q_docs}
 
-    s_start_dt = _parse_datetime(active_session["start_time"])
-    s_end_dt = _parse_datetime(active_session["end_time"])
+        formatted_questions = []
+        for qid in q_ids:
+            q = q_map.get(str(qid))
+            if q:
+                raw_test_cases = q.get("test_cases", [])
+                sample_test_cases = []
+                for tc in raw_test_cases:
+                    if tc.get("is_sample") is True:
+                        sample_test_cases.append({
+                            "input": tc.get("input", ""),
+                            "expected_output": tc.get("expected_output", ""),
+                        })
+                # If no test case has is_sample explicitly set to True, fallback to first testcase as sample
+                if not sample_test_cases and raw_test_cases:
+                    sample_test_cases.append({
+                        "input": raw_test_cases[0].get("input", ""),
+                        "expected_output": raw_test_cases[0].get("expected_output", ""),
+                    })
 
-    return {
-        "id": str(active_session["_id"]),
-        "institution_id": user_inst,
-        "start_time": s_start_dt.isoformat(),
-        "end_time": s_end_dt.isoformat(),
-        "duration_minutes": active_session.get("duration_minutes"),
-        "questions": formatted_questions,
-    }
+                formatted_questions.append({
+                    "id": str(q["_id"]),
+                    "title": q.get("title", ""),
+                    "description": q.get("description", ""),
+                    "difficulty": q.get("difficulty", "Easy"),
+                    "starter_code": q.get("starter_code", ""),
+                    "sample_test_cases": sample_test_cases,
+                })
+
+        result.append({
+            "id": str(s["_id"]),
+            "institution_id": user_inst,
+            "title": s.get("title") or "Coding Contest",
+            "start_time": s_start_dt.isoformat() if s_start_dt else "",
+            "end_time": s_end_dt.isoformat() if s_end_dt else "",
+            "duration_minutes": s.get("duration_minutes", 60),
+            "status": status_str,
+            "my_score": my_score,
+            "questions": formatted_questions,
+        })
+
+    return result
+
+# GET /contests/active (Student - returns active contest or first live contest)
+@router.get("/contests/active")
+async def get_active_contest(
+    current_user: dict = Depends(get_current_user),
+):
+    contests = await get_contests(current_user=current_user)
+    live_contests = [c for c in contests if c.get("status") == "live"]
+    if live_contests:
+        return live_contests[0]
+    return None
 
 # POST /contests/{id}/start (Student)
 @router.post("/contests/{id}/start")

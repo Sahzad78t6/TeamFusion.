@@ -144,9 +144,7 @@ export const Login: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button className="flex items-center justify-center gap-2 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold text-slate-300 transition-colors">
-                <Github className="w-4 h-4" /> GitHub
-              </button>
+              
               <button 
                 type="button"
                 onClick={handleGoogleLogin}

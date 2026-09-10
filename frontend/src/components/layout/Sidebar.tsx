@@ -51,9 +51,10 @@ import { useApp } from '../../context/AppContext';
 export const Sidebar: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
-  const { user, identityTwin } = useApp();
+  const { user, identityTwin, hasInstitutionContent } = useApp();
 
   const isAdmin = user.role === 'INSTITUTION_ADMIN' || user.role === 'PLATFORM_ADMIN';
+  const showInstitutionTests = Boolean(user.institution_id && hasInstitutionContent);
 
   const studentNavItems: NavItem[] = [
     { label: 'Dashboard',            path: '/dashboard',         icon: LayoutDashboard },
@@ -62,8 +63,12 @@ export const Sidebar: React.FC = () => {
     { label: 'Growth Opportunities', path: '/opportunities',     icon: Compass,     badge: 'AI Match' },
     { label: 'Daily Planner',        path: '/planner',           icon: Calendar },
     { label: 'Reflection',           path: '/reflection',        icon: PenTool },
-    { label: 'Assessments',          path: '/assessments',       icon: ClipboardList },
-    { label: 'Coding Contest',       path: '/contest',           icon: Code2,       badge: 'Live' },
+    ...(showInstitutionTests
+      ? [
+          { label: 'Assessments',    path: '/assessments',       icon: ClipboardList },
+          { label: 'Coding Contest', path: '/contest',           icon: Code2,       badge: 'Live' },
+        ]
+      : []),
   ];
 
   const navItems = isAdmin ? ADMIN_NAV : studentNavItems;

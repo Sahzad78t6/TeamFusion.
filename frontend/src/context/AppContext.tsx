@@ -26,6 +26,8 @@ import {
   getOpportunitiesApi,
   checkinApi,
   OnboardingPayload,
+  getContentStatusApi,
+  ContentStatusResponse,
 } from '../services/api';
 
 export interface AppContextType {
@@ -60,6 +62,10 @@ export interface AppContextType {
   setIsCopilotOpen: (open: boolean) => void;
   isCommandPaletteOpen: boolean;
   setIsCommandPaletteOpen: (open: boolean) => void;
+  isFocusMode: boolean;
+  setIsFocusMode: (focus: boolean) => void;
+  hasInstitutionContent: boolean;
+  setHasInstitutionContent: (hasContent: boolean) => void;
   toggleTask: (taskId: string) => void;
   toggleBookmarkResource: (resourceId: string) => void;
   toggleLikeResource: (resourceId: string) => void;
@@ -108,6 +114,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [analytics, setAnalytics] = useState<AnalyticsSummary>(emptyAnalytics);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [hasInstitutionContent, setHasInstitutionContent] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const setAuthToken = (token: string | null) => {
@@ -350,6 +358,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Suppress
       }
 
+      // Fetch institution content status API
+      try {
+        const statusRes = await getContentStatusApi(authToken);
+        if (statusRes) {
+          setHasInstitutionContent(Boolean(statusRes.has_content));
+        }
+      } catch (err) {
+        // Suppress
+      }
+
     } catch (e) {
       console.warn('Dashboard refresh failed:', e);
     }
@@ -586,6 +604,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsCopilotOpen,
         isCommandPaletteOpen,
         setIsCommandPaletteOpen,
+        isFocusMode,
+        setIsFocusMode,
+        hasInstitutionContent,
+        setHasInstitutionContent,
         toggleTask,
         toggleBookmarkResource,
         toggleLikeResource,

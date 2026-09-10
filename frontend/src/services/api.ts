@@ -543,10 +543,30 @@ async function institutionRequest(token: string, path: string, method = 'GET', b
 }
 
 export const getInstitutionAnalyticsApi = (token: string) => institutionRequest(token, '/analytics');
+export const getContentStatusApi = (token: string): Promise<ContentStatusResponse> => institutionRequest(token, '/content-status');
 export const createAssessmentApi = (token: string, payload: unknown) => institutionRequest(token, '/assessments', 'POST', payload);
-export const getAssessmentsApi = (token: string) => institutionRequest(token, '/assessments');
+export const getAssessmentsApi = (token: string): Promise<StudentAssessmentItem[]> => institutionRequest(token, '/assessments');
 export const submitAssessmentApi = (token: string, assessmentId: string, answers: Record<string, number>) => institutionRequest(token, `/assessments/${assessmentId}/submissions`, 'POST', { answers });
 export const createContestApi = (token: string, payload: { question_count: number; start_time: string; end_time: string; duration_minutes?: number }) => institutionRequest(token, '/contests', 'POST', payload);
+
+export interface ContentStatusResponse {
+  has_content: boolean;
+  has_assessments: boolean;
+  has_contests: boolean;
+}
+
+export interface StudentAssessmentItem {
+  id: string;
+  title: string;
+  description: string;
+  skill: string;
+  duration_minutes?: number;
+  start_time: string;
+  end_time: string;
+  status: 'live' | 'upcoming' | 'past';
+  my_score?: number | null;
+  questions?: { id: string; prompt: string; options: string[] }[];
+}
 
 // Coding Contest APIs
 export interface CodingContestQuestion {
@@ -555,7 +575,8 @@ export interface CodingContestQuestion {
   description: string;
   difficulty: string;
   starter_code: string | Record<string, string>;
-  test_cases?: { input: string }[];
+  sample_test_cases?: { input: string; expected_output: string }[];
+  test_cases?: { input: string; expected_output?: string }[];
 }
 
 export interface ActiveContestResponse {
@@ -563,14 +584,29 @@ export interface ActiveContestResponse {
   institution_id?: string;
   start_time: string;
   end_time: string;
-  question_ids: string[];
+  question_ids?: string[];
+  questions: CodingContestQuestion[];
+  duration_minutes?: number;
+}
+
+export interface StudentContestItem {
+  id: string;
+  institution_id?: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes?: number;
+  status: 'live' | 'upcoming' | 'past';
+  my_score?: number | null;
   questions: CodingContestQuestion[];
 }
 
-export interface ContestSubmitResponse {
-  passed: boolean | null;
-  results: { test_case_index: number; passed: boolean }[];
-  error?: string | null;
+export async function getContestsApi(token: string): Promise<StudentContestItem[]> {
+  const response = await safeFetch(`${API_BASE_URL}/contests`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<StudentContestItem[]>(response, 'Failed to retrieve contests.');
 }
 
 export async function getActiveContestApi(token: string): Promise<ActiveContestResponse | null> {
@@ -580,6 +616,15 @@ export async function getActiveContestApi(token: string): Promise<ActiveContestR
   });
   return await safeParseResponse<ActiveContestResponse | null>(response, 'Failed to retrieve active contest.');
 }
+
+export interface ContestSubmitResponse {
+  passed: boolean | null;
+  results: { test_case_index: number; passed: boolean }[];
+  error?: string | null;
+}
+
+export const startContestAttemptApi = (token: string, contestId: string) =>
+  institutionRequest(token, `/contests/${contestId}/start`, 'POST');
 
 export async function submitContestCodeApi(
   token: string,

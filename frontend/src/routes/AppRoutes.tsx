@@ -41,6 +41,16 @@ const AdminOnlyRoute: React.FC = () => {
   return <Outlet />;
 };
 
+/** Redirects students without institution_id or content away from /assessments & /contest */
+const EnrolledStudentRoute: React.FC = () => {
+  const { user, hasInstitutionContent } = useApp();
+  const isAdmin = user.role === 'INSTITUTION_ADMIN' || user.role === 'PLATFORM_ADMIN';
+  if (!isAdmin && (!user.institution_id || !hasInstitutionContent)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Outlet />;
+};
+
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
@@ -56,11 +66,15 @@ export const AppRoutes: React.FC = () => {
         <Route element={<AppLayout />}>
 
           {/* Shared routes (both students and admins can access) */}
-          <Route path="/assessments" element={<Assessments />} />
-          <Route path="/contest" element={<Contest />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/analytics" element={<Analytics />} />
+
+          {/* Routes guarded by institution enrollment */}
+          <Route element={<EnrolledStudentRoute />}>
+            <Route path="/assessments" element={<Assessments />} />
+            <Route path="/contest" element={<Contest />} />
+          </Route>
 
           {/* Student-only routes — admins get redirected to /institution/overview */}
           <Route element={<StudentOnlyRoute />}>
