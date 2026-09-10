@@ -197,3 +197,15 @@ export interface LiveResourcesResponse {
   papers: PaperResult[];
 }
 
+export interface LiveOpportunity {
+  title: string;
+  org_or_repo: string;
+  url: string;
+  tags: string[];
+  category: 'hackathons' | 'internships_roles' | 'communities' | 'mentorship' | 'conferences';
+}
+
+export interface LiveOpportunityResponse {
+  opportunities: LiveOpportunity[];
+}
+

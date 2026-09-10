@@ -2,7 +2,7 @@ const IS_PROD = (import.meta as any).env?.PROD;
 const VITE_API_URL = (import.meta as any).env?.VITE_API_URL;
 const IS_DEV = typeof window !== 'undefined' && (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1'));
 
-import { LiveResourcesResponse } from '../types';
+import { LiveResourcesResponse, LiveOpportunityResponse } from '../types';
 
 // Clean and resolve base API URL. If not provided via environment, default based on runtime environment.
 export const API_BASE_URL = VITE_API_URL
@@ -673,6 +673,14 @@ export async function getLiveResourcesApi(token: string, topicCode: string): Pro
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   });
   return await safeParseResponse<LiveResourcesResponse>(response, 'Failed to fetch live resources.');
+}
+
+export async function getLiveOpportunitiesApi(token: string, topicCode: string): Promise<LiveOpportunityResponse> {
+  const response = await safeFetch(`${API_BASE_URL}/opportunities/live?topic_code=${encodeURIComponent(topicCode)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  return await safeParseResponse<LiveOpportunityResponse>(response, 'Failed to fetch live opportunities.');
 }
 
 
