@@ -35,8 +35,14 @@ def _search_via_ytdlp(query: str, max_results: int = 6) -> List[Dict[str, Any]]:
         },
     }
 
+
     results: List[Dict[str, Any]] = []
-    search_query = f"ytsearch{max_results}:{query} tutorial"
+    if any(w in query.lower() for w in ["tutorial", "course", "lecture", "explained"]):
+        search_query = f"ytsearch{max_results}:{query}"
+    else:
+        search_query = f"ytsearch{max_results}:{query} full course tutorial"
+
+    logger.info(f"[VideoSearch] query='{query}' search_query='{search_query}'")
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

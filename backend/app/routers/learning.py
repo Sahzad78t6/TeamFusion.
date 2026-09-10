@@ -16,6 +16,48 @@ router = APIRouter(prefix="/learning", tags=["learning"])
 VIDEO_CACHE: Dict[str, List[dict]] = {}
 LIVE_RESOURCE_CACHE: Dict[str, dict] = {}
 
+async def _resolve_topic_label(db, effective_topic: str) -> str:
+    if " " in effective_topic or any(c.isupper() for c in effective_topic):
+        return effective_topic
+
+    try:
+        curr_doc = await db["curriculum"].find_one({"sequence.topic_code": effective_topic})
+        if curr_doc:
+            for item in curr_doc.get("sequence", []):
+                if item.get("topic_code") == effective_topic and item.get("label"):
+                    return item.get("label")
+    except Exception:
+        pass
+
+    return effective_topic.replace("_", " ").title()
+
+def _rank_videos(videos: List[dict], label: str, topic_code: str) -> List[dict]:
+    if not videos:
+        return []
+
+    label_lower = label.lower()
+    stop_words = {"and", "for", "with", "the", "in", "of", "to", "a", "an", "learning", "guide", "tutorial", "course", "full", "lecture"}
+    raw_words = label_lower.replace("&", " ").replace("-", " ").replace("_", " ").split()
+    keywords = [w for w in raw_words if len(w) > 2 and w not in stop_words]
+    code_words = [w for w in topic_code.lower().split("_") if len(w) > 2 and w not in stop_words]
+    keywords = list(set(keywords + code_words))
+
+    def score(v: dict) -> int:
+        title = (v.get("title") or "").lower()
+        s = 0
+        if label_lower in title:
+            s += 10
+        for kw in keywords:
+            if kw in title:
+                s += 3
+        generic_noise = ["java in 14 minutes", "python for beginners", "learn c++", "javascript tutorial", "html css"]
+        if any(g in title for g in generic_noise) and not any(kw in label_lower for kw in ["java", "python", "c++", "javascript", "html"]):
+            s -= 8
+        return s
+
+    ranked = sorted(videos, key=score, reverse=True)
+    return ranked[:6]
+
 @router.get("/videos", status_code=status.HTTP_200_OK)
 async def get_learning_videos(
     topic_code: Optional[str] = Query(None),
@@ -23,35 +65,25 @@ async def get_learning_videos(
     current_user: dict = Depends(get_current_user),
 ):
     db = get_db()
-    effective_topic = (topic_code or "dsa").strip()
-    cache_key = f"{effective_topic.lower()}:{(query or '').strip().lower()}"
+    effective_topic = (topic_code if isinstance(topic_code, str) and topic_code else "dsa").strip()
+    query_str = query if isinstance(query, str) else ""
+    cache_key = f"{effective_topic.lower()}:{query_str.strip().lower()}"
 
     if cache_key in VIDEO_CACHE and VIDEO_CACHE[cache_key]:
         return {"videos": VIDEO_CACHE[cache_key]}
 
     search_term = ""
-    if query and query.strip():
-        search_term = query.strip()
+    if query_str and query_str.strip():
+        search_term = query_str.strip()
+        label = search_term
     else:
-        label = None
-        try:
-            curr_doc = await db["curriculum"].find_one({"sequence.topic_code": effective_topic})
-            if curr_doc:
-                for item in curr_doc.get("sequence", []):
-                    if item.get("topic_code") == effective_topic:
-                        label = item.get("label")
-                        break
-        except Exception:
-            pass
-
-        if not label:
-            label = effective_topic.replace("_", " ").title()
-
-        search_term = f"{label} for beginners"
+        label = await _resolve_topic_label(db, effective_topic)
+        search_term = f"{label} full course"
 
     logger.info(f"Fetching YouTube videos for topic '{effective_topic}' with search term '{search_term}'")
     try:
-        videos = await search_videos(search_term, max_results=6, timeout_sec=22.0)
+        candidate_videos = await search_videos(search_term, max_results=10, timeout_sec=25.0)
+        videos = _rank_videos(candidate_videos, label, effective_topic)
     except Exception as exc:
         logger.warning(f"YouTube search failed gracefully: {exc}")
         videos = []
@@ -67,25 +99,13 @@ async def get_live_learning_resources(
     current_user: dict = Depends(get_current_user),
 ):
     db = get_db()
-    effective_topic = (topic_code or "dsa").strip()
+    effective_topic = (topic_code if isinstance(topic_code, str) and topic_code else "dsa").strip()
     cache_key = effective_topic.lower()
 
     if cache_key in LIVE_RESOURCE_CACHE and LIVE_RESOURCE_CACHE[cache_key]:
         return LIVE_RESOURCE_CACHE[cache_key]
 
-    label = None
-    try:
-        curr_doc = await db["curriculum"].find_one({"sequence.topic_code": effective_topic})
-        if curr_doc:
-            for item in curr_doc.get("sequence", []):
-                if item.get("topic_code") == effective_topic:
-                    label = item.get("label")
-                    break
-    except Exception:
-        pass
-
-    if not label:
-        label = effective_topic.replace("_", " ").title()
+    label = await _resolve_topic_label(db, effective_topic)
 
     logger.info(f"Fetching live articles, books, and papers for topic '{effective_topic}' (label: '{label}')")
 

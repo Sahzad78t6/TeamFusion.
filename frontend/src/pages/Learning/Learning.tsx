@@ -21,6 +21,7 @@ export const Learning: React.FC = () => {
   const [primaryGap, setPrimaryGap] = useState<string>('');
   const [learningStyle, setLearningStyle] = useState<string>('');
   const [lastCuratedAt, setLastCuratedAt] = useState<string>('');
+  const [currentTopicCode, setCurrentTopicCode] = useState<string>('');
 
   // Curriculum Roadmap Metadata Signals
   const [priority, setPriority] = useState<string>('');
@@ -91,6 +92,7 @@ export const Learning: React.FC = () => {
             if (data.dimension) setDimension(data.dimension);
             if (data.phase) setPhase(data.phase);
             if (data.plan_label) setPlanLabel(data.plan_label);
+            if (data.topic_code) setCurrentTopicCode(data.topic_code);
 
             const recs = data.recommendations || data.resources || [];
             if (recs.length > 0) {
@@ -110,7 +112,7 @@ export const Learning: React.FC = () => {
   // Fetch live YouTube videos and live reading resources when topic changes
   useEffect(() => {
     if (authToken) {
-      const activeTopicCode = dimension || primaryGap || 'dsa';
+      const activeTopicCode = currentTopicCode || primaryGap || 'os_networking';
 
       setIsLoadingVideos(true);
       setVideosError(null);
@@ -152,7 +154,7 @@ export const Learning: React.FC = () => {
           setIsLoadingLive(false);
         });
     }
-  }, [authToken, dimension, primaryGap]);
+  }, [authToken, currentTopicCode, primaryGap]);
 
   const handleTriggerCuratorAgent = async () => {
     if (!authToken || isLoading) return;
@@ -181,6 +183,7 @@ export const Learning: React.FC = () => {
         if (data.dimension) setDimension(data.dimension);
         if (data.phase) setPhase(data.phase);
         if (data.plan_label) setPlanLabel(data.plan_label);
+        if (data.topic_code) setCurrentTopicCode(data.topic_code);
 
         const recs = data.recommendations || data.resources || [];
         if (recs.length > 0) {
